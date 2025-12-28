@@ -25,7 +25,7 @@ Coming soon.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/anthropics/clankercontext.git
+   git clone https://github.com/DNGriffin/clankercontext.git
    cd clankercontext
    ```
 
