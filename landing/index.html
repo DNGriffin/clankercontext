@@ -66,16 +66,10 @@
       <!-- Video Demo -->
       <div class="demo-video">
         <div class="video-container">
-          <video id="demo-video" controls poster="video-poster.jpg">
+          <video id="demo-video" controls autoplay muted loop playsinline>
             <source src="demo.mp4" type="video/mp4">
             Your browser does not support the video tag.
           </video>
-          <div class="video-placeholder">
-            <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-            <span>Demo coming soon</span>
-          </div>
         </div>
       </div>
     </div>
@@ -388,17 +382,6 @@
       });
     });
 
-    // Video placeholder handling
-    const video = document.getElementById('demo-video');
-    const placeholder = document.querySelector('.video-placeholder');
-
-    video?.addEventListener('loadeddata', () => {
-      placeholder?.classList.add('hidden');
-    });
-
-    video?.addEventListener('error', () => {
-      placeholder?.classList.remove('hidden');
-    });
   </script>
 </body>
 </html>
