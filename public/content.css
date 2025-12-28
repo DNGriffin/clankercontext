@@ -1,0 +1,26 @@
+/* ClankerContext Content Script Styles */
+
+#clankercontext-overlay,
+#clankercontext-highlight,
+#clankercontext-tooltip {
+  /* Reset all inherited styles */
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  box-sizing: border-box;
+}
+
+#clankercontext-overlay {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+}
+
+#clankercontext-highlight {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+}
+
+#clankercontext-tooltip {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+}

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClankerContext - Feed Your AI Coding Tools Perfect Context</title>
+  <meta name="description" content="A Chrome Extension that captures frontend context for AI coding tools. Export HTML, selectors, console errors, and network requests as markdown for Claude Code, Cursor, GitHub Copilot, and more.">
+  <link rel="icon" type="image/jpeg" href="logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <nav class="nav container">
+      <a href="/" class="logo">
+        <img src="logo.jpg" alt="ClankerContext" class="logo-img">
+        <span class="logo-text">ClankerContext</span>
+      </a>
+      <div class="nav-links">
+        <a href="https://github.com/anthropics/clankercontext" class="nav-link github-link" target="_blank" rel="noopener">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+        <a href="#install" class="btn btn-primary">Install Extension</a>
+      </div>
+      <button class="mobile-menu-btn" aria-label="Toggle menu">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1 class="hero-title">
+          Feed your AI coding tools<br>
+          <span class="gradient-text">perfect context</span>
+        </h1>
+        <p class="hero-subtitle">
+          A Chrome Extension that captures frontend context and exports it as LLM-optimized markdown.
+          Works with Claude Code, Cursor, GitHub Copilot, OpenCode, and any AI coding assistant.
+        </p>
+        <div class="hero-cta">
+          <a href="#install" class="btn btn-primary btn-lg">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C8.21 0 5 3.21 5 7c0 2.82 1.63 5.25 4 6.42V22l3-3 3 3V13.42c2.37-1.17 4-3.6 4-6.42 0-3.79-3.21-7-7-7zm0 2c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5 2.24-5 5-5z"/>
+            </svg>
+            Install for Chrome
+          </a>
+          <a href="https://github.com/anthropics/clankercontext" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">
+            View Source
+          </a>
+        </div>
+      </div>
+
+      <!-- Video Demo -->
+      <div class="demo-video">
+        <div class="video-container">
+          <video id="demo-video" controls poster="video-poster.jpg">
+            <source src="demo.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+          <div class="video-placeholder">
+            <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <span>Demo coming soon</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="container">
+      <h2 class="section-title">LLMs are only as good as the context you feed them</h2>
+      <p class="section-subtitle">
+        ClankerContext captures everything your AI coding tool needs to understand and fix frontend issues.
+      </p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+          </div>
+          <h3>Element HTML Capture</h3>
+          <p>Point and click to capture the exact HTML of any element. The AI sees exactly what you're working with.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+            </svg>
+          </div>
+          <h3>CSS Selectors</h3>
+          <p>Auto-generates robust CSS selectors using data-testid, ARIA labels, IDs, and smart path-based fallbacks.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <h3>Console Errors</h3>
+          <p>Captures JavaScript errors with full stack traces. The AI understands exactly what went wrong.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <h3>Network Requests</h3>
+          <p>Logs failed API calls with status codes and URLs. Perfect for debugging API integration issues.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <h3>Markdown Export</h3>
+          <p>One-click export to LLM-optimized markdown. Copy to clipboard or download as a file.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <h3>Zero Footprint</h3>
+          <p>Does nothing until you click "Start listening". Pause anytime. No background activity whatsoever.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compatible Tools Section -->
+  <section class="compatibility">
+    <div class="container">
+      <h2 class="section-title">Works with every AI coding tool</h2>
+      <p class="section-subtitle">
+        ClankerContext exports raw markdown that any AI assistant can understand.
+        No integrations needed — just paste or import.
+      </p>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <span class="tool-name">Claude Code</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">Cursor</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">GitHub Copilot</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">OpenCode</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">Kilo Code</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">Anti Gravity</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">Aider</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">Any AI Tool</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy Section -->
+  <section class="privacy" id="privacy">
+    <div class="container">
+      <div class="privacy-content">
+        <div class="privacy-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h2>Your data never leaves your browser</h2>
+        <p>
+          ClankerContext is a 100% client-side application. <strong>No data is ever sent to any server.</strong>
+          There's no telemetry, no analytics, no tracking — nothing. All captured data stays in your browser's
+          IndexedDB until you export or clear it.
+        </p>
+        <p>
+          Don't take our word for it — the entire codebase is open source.
+          <a href="https://github.com/anthropics/clankercontext" target="_blank" rel="noopener">Audit it yourself.</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <h2 class="section-title">How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Start listening</h3>
+          <p>Click the extension icon and hit "Start listening" to begin monitoring console errors and network requests.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>Log an issue</h3>
+          <p>Click "Modify with AI" or "Fix with AI", describe what you want, then click on the relevant element.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Export context</h3>
+          <p>Copy the markdown to clipboard or download it. Paste it into your AI coding tool and watch the magic happen.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="faq" id="faq">
+    <div class="container">
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>Does this work with Cursor, Claude Code, GitHub Copilot, Kilo Code?</summary>
+          <p>
+            Yes! ClankerContext works with <strong>any</strong> AI coding tool that accepts text input.
+            It exports standard markdown containing HTML snippets, CSS selectors, console errors with stack traces,
+            and failed network requests. Just paste the exported markdown into Claude Code, Cursor, GitHub Copilot,
+            Kilo Code, OpenCode, Windsurf, Aider, or any other AI assistant. No special integrations required.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Do you store any of my data?</summary>
+          <p>
+            <strong>Absolutely not.</strong> ClankerContext is a 100% client-side Chrome extension.
+            There are no servers, no APIs, no backend whatsoever. All data is stored locally in your
+            browser's IndexedDB and is never transmitted anywhere. There's zero telemetry, zero analytics,
+            zero tracking. The extension is completely open source, so you can verify this yourself by
+            reading the code.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Does it cost anything?</summary>
+          <p>
+            <strong>No, it's completely free.</strong> ClankerContext is open source software released
+            under the MIT license. There are no premium tiers, no subscriptions, no hidden costs.
+            You get all features for free, forever.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Does it require an account?</summary>
+          <p>
+            <strong>No account required.</strong> Just install the extension and start using it immediately.
+            There's no sign-up, no login, no email required. The extension works entirely offline and
+            doesn't need any external services.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What exactly gets captured?</summary>
+          <p>
+            When you select an element, ClankerContext captures: the element's HTML (with surrounding context),
+            a robust CSS selector for identifying the element, the current page URL, all console errors and
+            exceptions that occurred during your session (with full stack traces), and any failed network
+            requests (non-2XX status codes). This gives AI coding tools complete context to understand and
+            fix frontend issues.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Does the extension slow down my browser?</summary>
+          <p>
+            <strong>Not at all.</strong> ClankerContext has zero footprint until you explicitly click
+            "Start listening". Even when active, it uses Chrome's built-in DevTools Protocol for
+            efficient error capture. You can pause monitoring anytime, which completely stops all
+            background activity. The extension is designed to stay out of your way.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>How is the CSS selector generated?</summary>
+          <p>
+            ClankerContext uses a smart prioritization system: it first looks for <code>data-testid</code>
+            attributes (most reliable), then unique IDs, then ARIA labels, and finally falls back to
+            path-based selectors using tag names and nth-child positions. This ensures AI tools get
+            selectors that are both specific and resilient to minor DOM changes.
+          </p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install Section -->
+  <section class="install" id="install">
+    <div class="container">
+      <h2 class="section-title">Ready to supercharge your AI coding workflow?</h2>
+      <p class="section-subtitle">
+        Install ClankerContext and start giving your AI tools the context they deserve.
+      </p>
+      <div class="install-cta">
+        <a href="https://chrome.google.com/webstore/detail/clankercontext/EXTENSION_ID" class="btn btn-primary btn-xl" target="_blank" rel="noopener">
+          <svg class="icon chrome-icon" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M21.17 8H12"/>
+            <path d="M3.95 6.06L8.54 14"/>
+            <path d="M10.88 21.94L15.46 14"/>
+          </svg>
+          Install for Chrome
+        </a>
+        <p class="install-note">Free forever. No account required.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <img src="logo.jpg" alt="ClankerContext" class="footer-logo">
+          <span>ClankerContext</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/anthropics/clankercontext" target="_blank" rel="noopener">GitHub</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <p class="footer-copy">
+          Open source under MIT License. Made with care for the developer community.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+    const navLinks = document.querySelector('.nav-links');
+
+    mobileMenuBtn?.addEventListener('click', () => {
+      navLinks?.classList.toggle('active');
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          navLinks?.classList.remove('active');
+        }
+      });
+    });
+
+    // Video placeholder handling
+    const video = document.getElementById('demo-video');
+    const placeholder = document.querySelector('.video-placeholder');
+
+    video?.addEventListener('loadeddata', () => {
+      placeholder?.classList.add('hidden');
+    });
+
+    video?.addEventListener('error', () => {
+      placeholder?.classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>

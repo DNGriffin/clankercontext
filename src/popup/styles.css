@@ -1,0 +1,90 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Custom theme using Tailwind v4 @theme directive */
+@theme {
+  /* Neutral gray palette */
+  --color-background: oklch(100% 0 0);
+  --color-foreground: oklch(14.08% 0.004 285.82);
+
+  /* Card colors */
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(14.08% 0.004 285.82);
+
+  /* Popover colors */
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(14.08% 0.004 285.82);
+
+  /* Primary - blue accent */
+  --color-primary: oklch(58.8% 0.158 241.96);
+  --color-primary-foreground: oklch(98.51% 0.002 247.84);
+
+  /* Secondary - subtle gray */
+  --color-secondary: oklch(96.08% 0.006 285.88);
+  --color-secondary-foreground: oklch(21.03% 0.006 285.88);
+
+  /* Muted */
+  --color-muted: oklch(96.08% 0.006 285.88);
+  --color-muted-foreground: oklch(55.1% 0.016 285.94);
+
+  /* Accent */
+  --color-accent: oklch(96.08% 0.006 285.88);
+  --color-accent-foreground: oklch(21.03% 0.006 285.88);
+
+  /* Destructive - red */
+  --color-destructive: oklch(57.71% 0.215 27.33);
+  --color-destructive-foreground: oklch(98.51% 0.002 247.84);
+
+  /* Success - green */
+  --color-success: oklch(62.8% 0.18 145);
+  --color-success-foreground: oklch(100% 0 0);
+
+  /* Warning - amber */
+  --color-warning: oklch(79.5% 0.16 75);
+  --color-warning-foreground: oklch(25% 0 0);
+
+  /* Border and input */
+  --color-border: oklch(89.94% 0.006 285.88);
+  --color-input: oklch(89.94% 0.006 285.88);
+  --color-ring: oklch(58.8% 0.158 241.96);
+
+  /* Border radius */
+  --radius-lg: 0.5rem;
+  --radius-md: calc(var(--radius-lg) - 2px);
+  --radius-sm: calc(var(--radius-md) - 2px);
+
+  /* Fonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+/* Base styles */
+*,
+*::before,
+*::after {
+  border-color: var(--color-border);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-foreground);
+  background-color: var(--color-background);
+  width: 420px;
+  min-height: fit-content;
+  max-height: 600px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  position: relative;
+}
+
+/* Focus ring utility */
+.focus-ring {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
