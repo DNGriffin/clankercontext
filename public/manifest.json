@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ClankerContext",
   "version": "1.0.0",
-  "description": "Generate LLM context for AI coding tools - capture bugs and enhancements with one click",
+  "description": "Vibecoding tool that feeds agentic coding tools perfect frontend context. Works with OpenCode, Cursor, Claude, Copilot, etc",
   "permissions": [
     "activeTab",
     "tabs",
