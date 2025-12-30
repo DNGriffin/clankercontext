@@ -51,7 +51,7 @@ export default defineConfig({
         if (!existsSync(iconsDir)) {
           mkdirSync(iconsDir, { recursive: true });
         }
-        ['icon-16.png', 'icon-48.png', 'icon-128.png'].forEach((icon) => {
+        ['icon-16.png', 'icon-48.png', 'icon-128.png', 'litlogo-128.png', 'asleep-128.png'].forEach((icon) => {
           const src = `public/icons/${icon}`;
           if (existsSync(src)) {
             copyFileSync(src, `dist/icons/${icon}`);

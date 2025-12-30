@@ -12,6 +12,7 @@ import { storageManager } from './StorageManager';
 import { sessionStateMachine } from './SessionStateMachine';
 import { initMessageRouter, clearInjectionTracking } from './MessageRouter';
 import { cdpController } from './CDPController';
+import { iconController } from './IconController';
 
 /**
  * Initialize the background service worker.
@@ -44,6 +45,9 @@ async function init(): Promise<void> {
     } else if (isPaused) {
       console.log('[ClankerContext] Session is paused, not attaching CDP');
     }
+
+    // Restore icon state based on session state
+    await iconController.restoreState(sessionStateMachine.isMonitoring(), isPaused);
   }
 
   // Initialize message routing

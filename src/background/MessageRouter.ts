@@ -10,6 +10,7 @@ import { storageManager } from './StorageManager';
 import { sessionStateMachine } from './SessionStateMachine';
 import { markdownExporter } from '@/exporter/MarkdownExporter';
 import { cdpController } from './CDPController';
+import { iconController } from './IconController';
 
 // Track tabs where content script has been injected
 const injectedTabs = new Set<number>();
@@ -132,6 +133,9 @@ async function handlePopupMessage(
       // Ensure not paused
       await chrome.storage.session.set({ isPaused: false });
 
+      // Show active icon
+      await iconController.showActiveIcon();
+
       return true;
     }
 
@@ -143,6 +147,9 @@ async function handlePopupMessage(
 
       // Store paused state
       await chrome.storage.session.set({ isPaused: true });
+
+      // Show sleep icon
+      await iconController.showSleepIcon();
 
       return true;
     }
@@ -177,6 +184,9 @@ async function handlePopupMessage(
 
       // Clear paused state
       await chrome.storage.session.set({ isPaused: false });
+
+      // Show active icon
+      await iconController.showActiveIcon();
 
       return true;
     }
@@ -312,6 +322,9 @@ async function handlePopupMessage(
 
       // Clear injection tracking
       injectedTabs.clear();
+
+      // Show default icon
+      await iconController.showDefaultIcon();
 
       return true;
     }

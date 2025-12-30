@@ -40,6 +40,20 @@ export function Popup(): React.ReactElement {
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
+  const [iconToggle, setIconToggle] = useState(false);
+
+  // Cycle icon when active (not paused)
+  useEffect(() => {
+    if (!state.session || isPaused) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setIconToggle((prev) => !prev);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [state.session, isPaused]);
 
   // Fetch state from background
   const fetchState = useCallback(async () => {
@@ -300,7 +314,13 @@ export function Popup(): React.ReactElement {
       <header className="flex items-center justify-between pb-2 border-b">
         <div className="flex items-center gap-3">
           <img
-            src="/icons/clankercontext logo.jpg"
+            src={
+              !state.session || isPaused
+                ? '/icons/asleep-128.png'
+                : iconToggle
+                  ? '/icons/litlogo-128.png'
+                  : '/icons/icon-128.png'
+            }
             alt="ClankerContext"
             className="h-14 w-14 rounded"
           />
