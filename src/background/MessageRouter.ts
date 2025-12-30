@@ -52,9 +52,10 @@ async function injectContentScript(tabId: number): Promise<void> {
     injectedTabs.add(tabId);
     console.log('[MessageRouter] Content script injected successfully');
   } catch (e) {
-    console.error('[MessageRouter] Content script injection failed:', e);
+    // Use warn - injection can fail on restricted pages, and the script
+    // might already be there from a previous session
+    console.warn('[MessageRouter] Content script injection failed:', e);
     // Still add to injectedTabs to avoid repeated failed attempts
-    // The script might already be there from a previous session
     injectedTabs.add(tabId);
   }
 }
@@ -127,8 +128,15 @@ async function handlePopupMessage(
       // Start monitoring
       await sessionStateMachine.startMonitoring(tab.id);
 
-      // Attach CDP for error capture
-      await cdpController.attach(tab.id);
+      // Attach CDP for error capture - if this fails, clean up the session
+      try {
+        await cdpController.attach(tab.id);
+      } catch (error) {
+        // Clean up the session we just created
+        await sessionStateMachine.forceReset(true);
+        await iconController.showDefaultIcon();
+        throw error;
+      }
 
       // Ensure not paused
       await chrome.storage.session.set({ isPaused: false });
@@ -442,7 +450,9 @@ export function initMessageRouter(): void {
     handlePromise
       .then((result) => sendResponse(result))
       .catch((error) => {
-        console.error('[MessageRouter] Error handling message:', error);
+        // Use warn instead of error - most errors here are expected
+        // (restricted pages, state guards, etc.) and are handled in the UI
+        console.warn('[MessageRouter] Error handling message:', error);
         sendResponse({ error: error.message });
       });
 

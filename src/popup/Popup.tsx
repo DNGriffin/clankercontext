@@ -41,6 +41,15 @@ export function Popup(): React.ReactElement {
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [iconToggle, setIconToggle] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Cycle icon when active (not paused)
   useEffect(() => {
@@ -196,14 +205,18 @@ export function Popup(): React.ReactElement {
   const handleStartListening = useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, loading: true, error: null }));
-      await chrome.runtime.sendMessage({ type: 'START_LISTENING' });
+      const response = await chrome.runtime.sendMessage({ type: 'START_LISTENING' });
+      if (response?.error) {
+        throw new Error(response.error);
+      }
       await fetchState();
     } catch (error) {
       setState((prev) => ({
         ...prev,
         loading: false,
-        error: error instanceof Error ? error.message : 'Failed to start',
+        error: null,
       }));
+      setToast('Cannot listen to this page');
     }
   }, [fetchState]);
 
@@ -212,16 +225,24 @@ export function Popup(): React.ReactElement {
     try {
       setTogglingPause(true);
       if (isPaused) {
-        await chrome.runtime.sendMessage({ type: 'RESUME_LISTENING' });
+        const response = await chrome.runtime.sendMessage({ type: 'RESUME_LISTENING' });
+        if (response?.error) {
+          throw new Error(response.error);
+        }
       } else {
         await chrome.runtime.sendMessage({ type: 'PAUSE_LISTENING' });
       }
       await fetchState();
     } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Failed to toggle pause',
-      }));
+      // Show toast for resume errors (likely restricted page)
+      if (isPaused) {
+        setToast('Cannot listen to this page');
+      } else {
+        setState((prev) => ({
+          ...prev,
+          error: error instanceof Error ? error.message : 'Failed to toggle pause',
+        }));
+      }
     } finally {
       setTogglingPause(false);
     }
@@ -492,6 +513,14 @@ export function Popup(): React.ReactElement {
         >
           Clear Session
         </Button>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed bottom-4 left-4 right-4 flex items-center gap-2 rounded-md bg-destructive px-4 py-3 text-base text-destructive-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{toast}</span>
+        </div>
       )}
     </div>
   );

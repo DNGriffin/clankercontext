@@ -36,7 +36,9 @@ class CDPController {
 
       console.log('[CDP] Attached to tab:', tabId);
     } catch (error) {
-      console.error('[CDP] Failed to attach:', error);
+      // Use warn instead of error - these are expected for restricted pages
+      // (chrome://, Web Store, etc.) and are handled upstream with a toast
+      console.warn('[CDP] Failed to attach:', error);
       throw error;
     }
   }
