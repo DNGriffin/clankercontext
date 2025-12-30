@@ -4,10 +4,11 @@
  * Runs in the context of web pages to:
  * - Handle element picker for issue capture
  * - Capture element HTML and selector
+ * - Support multi-select with CTRL+click
  */
 
 import type { BackgroundToContentMessage } from '@/shared/messages';
-import type { IssueType } from '@/shared/types';
+import type { CapturedElement, IssueType } from '@/shared/types';
 import { getBestSelector } from './SelectorGenerator';
 import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
 
@@ -16,6 +17,11 @@ let elementPickerActive = false;
 let currentIssueType: IssueType | null = null;
 let highlightElement: HTMLDivElement | null = null;
 let overlayElement: HTMLDivElement | null = null;
+let tooltipElement: HTMLDivElement | null = null;
+
+// Multi-select state
+let selectedElements: CapturedElement[] = [];
+let selectedHighlights: HTMLDivElement[] = [];
 
 /**
  * Initialize the content script.
@@ -56,6 +62,136 @@ function handleMessage(
 }
 
 /**
+ * Update the tooltip text based on current selection state.
+ */
+function updateTooltip(): void {
+  if (!tooltipElement) return;
+
+  const count = selectedElements.length;
+  let text: string;
+
+  if (count === 0) {
+    text = currentIssueType === 'enhancement'
+      ? 'Click to select element. Hold Ctrl+click to select multiple. Press Esc to cancel.'
+      : 'Click to select element. Hold Ctrl+click to select multiple. Press Esc to cancel.';
+  } else {
+    text = `${count} element${count > 1 ? 's' : ''} selected. Ctrl+click to add more, click to add and finish, or press Enter to finish.`;
+  }
+
+  tooltipElement.textContent = text;
+}
+
+/**
+ * Create a persistent highlight for a selected element.
+ */
+function createSelectedHighlight(element: Element, index: number): HTMLDivElement {
+  const rect = element.getBoundingClientRect();
+  const highlight = document.createElement('div');
+  highlight.className = 'clankercontext-selected-highlight';
+  highlight.style.cssText = `
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 2147483645 !important;
+    border: 3px solid #22c55e !important;
+    background: rgba(34, 197, 94, 0.15) !important;
+    top: ${rect.top}px !important;
+    left: ${rect.left}px !important;
+    width: ${rect.width}px !important;
+    height: ${rect.height}px !important;
+  `;
+
+  // Add number badge
+  const badge = document.createElement('div');
+  badge.style.cssText = `
+    position: absolute !important;
+    top: -12px !important;
+    left: -12px !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: #22c55e !important;
+    color: white !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  `;
+  badge.textContent = String(index + 1);
+  highlight.appendChild(badge);
+
+  document.body.appendChild(highlight);
+  return highlight;
+}
+
+/**
+ * Capture element data (HTML and selector).
+ */
+function captureElement(element: Element): CapturedElement {
+  let html = element.outerHTML;
+  if (html.length > DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) {
+    html = html.substring(0, DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) + '<!-- truncated -->';
+  }
+
+  const selector = getBestSelector(element);
+
+  return { html, selector };
+}
+
+/**
+ * Finish element selection and send data to background.
+ */
+function finishSelection(): void {
+  if (selectedElements.length === 0) {
+    cancelElementPicker();
+    return;
+  }
+
+  // Save elements before cleanup (cleanup resets the array)
+  const elementsToSend = [...selectedElements];
+  const elementCount = elementsToSend.length;
+
+  // Clean up picker UI
+  cleanupPicker();
+
+  // Send to background
+  chrome.runtime.sendMessage({
+    type: 'ELEMENT_SELECTED',
+    elements: elementsToSend,
+    pageUrl: window.location.href,
+  });
+
+  console.log('[ClankerContext] Elements selected:', elementCount);
+}
+
+/**
+ * Clean up all picker UI elements.
+ */
+function cleanupPicker(): void {
+  elementPickerActive = false;
+  currentIssueType = null;
+
+  // Remove main picker elements
+  document.getElementById('clankercontext-overlay')?.remove();
+  document.getElementById('clankercontext-highlight')?.remove();
+  document.getElementById('clankercontext-tooltip')?.remove();
+
+  // Remove all selected highlights
+  selectedHighlights.forEach((h) => h.remove());
+  selectedHighlights = [];
+
+  // Reset state
+  selectedElements = [];
+  overlayElement = null;
+  highlightElement = null;
+  tooltipElement = null;
+
+  // Remove event listeners
+  document.removeEventListener('keydown', handlePickerKeyDown);
+}
+
+/**
  * Start the element picker for issue capture.
  */
 function startElementPicker(): void {
@@ -76,6 +212,11 @@ function startElementPicker(): void {
   document.getElementById('clankercontext-overlay')?.remove();
   document.getElementById('clankercontext-highlight')?.remove();
   document.getElementById('clankercontext-tooltip')?.remove();
+  document.querySelectorAll('.clankercontext-selected-highlight').forEach((el) => el.remove());
+
+  // Reset multi-select state
+  selectedElements = [];
+  selectedHighlights = [];
 
   elementPickerActive = true;
 
@@ -93,7 +234,7 @@ function startElementPicker(): void {
     background: transparent !important;
   `;
 
-  // Create highlight element
+  // Create highlight element (follows cursor)
   highlightElement = document.createElement('div');
   highlightElement.id = 'clankercontext-highlight';
   highlightElement.style.cssText = `
@@ -107,9 +248,9 @@ function startElementPicker(): void {
   `;
 
   // Create instruction tooltip
-  const tooltip = document.createElement('div');
-  tooltip.id = 'clankercontext-tooltip';
-  tooltip.style.cssText = `
+  tooltipElement = document.createElement('div');
+  tooltipElement.id = 'clankercontext-tooltip';
+  tooltipElement.style.cssText = `
     position: fixed !important;
     top: 16px !important;
     left: 50% !important;
@@ -122,16 +263,15 @@ function startElementPicker(): void {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 14px !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    max-width: 90vw !important;
+    text-align: center !important;
   `;
 
-  const tooltipText = currentIssueType === 'enhancement'
-    ? 'Click where you want the enhancement. Press Esc to cancel.'
-    : 'Click on what needs fixed. Press Esc to cancel.';
-  tooltip.textContent = tooltipText;
+  updateTooltip();
 
   document.body.appendChild(overlayElement);
   document.body.appendChild(highlightElement);
-  document.body.appendChild(tooltip);
+  document.body.appendChild(tooltipElement);
 
   // Add event listeners
   overlayElement.addEventListener('mousemove', handlePickerMouseMove);
@@ -146,19 +286,8 @@ function startElementPicker(): void {
  */
 function cancelElementPicker(): void {
   if (!elementPickerActive) return;
-  elementPickerActive = false;
-  currentIssueType = null;
 
-  // Remove elements
-  document.getElementById('clankercontext-overlay')?.remove();
-  document.getElementById('clankercontext-highlight')?.remove();
-  document.getElementById('clankercontext-tooltip')?.remove();
-
-  overlayElement = null;
-  highlightElement = null;
-
-  // Remove event listeners
-  document.removeEventListener('keydown', handlePickerKeyDown);
+  cleanupPicker();
 
   chrome.runtime.sendMessage({ type: 'ELEMENT_PICKER_CANCELLED' });
 
@@ -215,32 +344,28 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  // Clean up picker UI
-  elementPickerActive = false;
-  currentIssueType = null;
-  document.getElementById('clankercontext-overlay')?.remove();
-  document.getElementById('clankercontext-highlight')?.remove();
-  document.getElementById('clankercontext-tooltip')?.remove();
-  document.removeEventListener('keydown', handlePickerKeyDown);
-  overlayElement = null;
-  highlightElement = null;
-
   // Capture element data
-  let html = element.outerHTML;
-  if (html.length > DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) {
-    html = html.substring(0, DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) + '<!-- truncated -->';
+  const captured = captureElement(element);
+
+  // Check if CTRL/CMD is held for multi-select
+  const isMultiSelect = event.ctrlKey || event.metaKey;
+
+  // Add to selected elements
+  selectedElements.push(captured);
+
+  // Create persistent highlight for this element
+  const highlight = createSelectedHighlight(element, selectedElements.length - 1);
+  selectedHighlights.push(highlight);
+
+  // Update tooltip
+  updateTooltip();
+
+  console.log('[ClankerContext] Element added to selection:', captured.selector);
+
+  // If not multi-select (no CTRL held), finish selection
+  if (!isMultiSelect) {
+    finishSelection();
   }
-
-  const selector = getBestSelector(element);
-
-  // Send to background
-  chrome.runtime.sendMessage({
-    type: 'ELEMENT_SELECTED',
-    element: { html, selector },
-    pageUrl: window.location.href,
-  });
-
-  console.log('[ClankerContext] Element selected:', selector);
 }
 
 /**
@@ -249,6 +374,9 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
 function handlePickerKeyDown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     cancelElementPicker();
+  } else if (event.key === 'Enter' && selectedElements.length > 0) {
+    // Enter finishes selection when elements are already selected
+    finishSelection();
   }
 }
 

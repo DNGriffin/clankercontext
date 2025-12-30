@@ -65,21 +65,43 @@ class MarkdownExporter {
     lines.push(`**Page URL:** \`${issue.pageUrl}\``);
     lines.push('');
 
-    // Selected element with guidance
-    lines.push('## Target Element');
+    const elements = issue.elements;
+
+    // Selected element(s) with guidance
+    const elementCount = elements.length;
+    lines.push(`## Target Element${elementCount > 1 ? 's' : ''}`);
     lines.push('');
-    lines.push('The user selected this element as the focus of their request:');
-    lines.push('');
-    lines.push('```html');
-    lines.push(this.formatHTML(issue.elementHTML));
-    lines.push('```');
-    lines.push('');
-    lines.push(`**CSS Selector:** \`${issue.elementSelector}\``);
+
+    if (elementCount === 1) {
+      lines.push('The user selected this element as the focus of their request:');
+      lines.push('');
+      lines.push('```html');
+      lines.push(this.formatHTML(elements[0].html));
+      lines.push('```');
+      lines.push('');
+      lines.push(`**CSS Selector:** \`${elements[0].selector}\``);
+    } else {
+      lines.push(`The user selected ${elementCount} elements as the focus of their request:`);
+      lines.push('');
+
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        lines.push(`### Element ${i + 1}`);
+        lines.push('');
+        lines.push('```html');
+        lines.push(this.formatHTML(el.html));
+        lines.push('```');
+        lines.push('');
+        lines.push(`**CSS Selector:** \`${el.selector}\``);
+        lines.push('');
+      }
+    }
+
     lines.push('');
     if (isEnhancement) {
-      lines.push('Use this element as reference for where to apply the enhancement. You may need to modify this element, its parent, or add sibling elements.');
+      lines.push(`Use ${elementCount > 1 ? 'these elements as references' : 'this element as reference'} for where to apply the enhancement. You may need to modify ${elementCount > 1 ? 'these elements' : 'this element'}, their parents, or add sibling elements.`);
     } else {
-      lines.push('This element may be the source of the bug, or closely related to it. Inspect its attributes, event handlers, and parent/child relationships.');
+      lines.push(`${elementCount > 1 ? 'These elements may be' : 'This element may be'} the source of the bug, or closely related to it. Inspect ${elementCount > 1 ? 'their' : 'its'} attributes, event handlers, and parent/child relationships.`);
     }
     lines.push('');
 

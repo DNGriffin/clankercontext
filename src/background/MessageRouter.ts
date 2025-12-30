@@ -79,7 +79,7 @@ async function downloadMarkdown(content: string, filename: string): Promise<void
   await chrome.downloads.download({
     url: dataUrl,
     filename: filename.endsWith('.md') ? filename : `${filename}.md`,
-    saveAs: true,
+    saveAs: false,
   });
 }
 
@@ -355,15 +355,14 @@ async function handleContentMessage(
           (pendingIssue.issueType === 'enhancement' ? 'Enhancement' : 'Bug fix')
         : pendingIssue.issueType === 'enhancement' ? 'Enhancement' : 'Bug fix';
 
-      // Create the issue
+      // Create the issue with elements array
       const issue: Issue = {
         id: `issue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: pendingIssue.issueType,
         timestamp: Date.now(),
         name: autoName,
         userPrompt: pendingIssue.userPrompt,
-        elementHTML: message.element.html,
-        elementSelector: message.element.selector,
+        elements: message.elements,
         pageUrl: message.pageUrl,
       };
 

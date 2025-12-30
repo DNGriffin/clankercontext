@@ -1,4 +1,4 @@
-import type { Issue, IssueType, MonitoringSession } from './types';
+import type { CapturedElement, Issue, IssueType, MonitoringSession } from './types';
 
 // Popup -> Background messages
 export type PopupToBackgroundMessage =
@@ -33,5 +33,5 @@ export type BackgroundToContentMessage =
 
 // Content -> Background messages
 export type ContentToBackgroundMessage =
-  | { type: 'ELEMENT_SELECTED'; element: { html: string; selector: string }; pageUrl: string }
+  | { type: 'ELEMENT_SELECTED'; elements: CapturedElement[]; pageUrl: string }
   | { type: 'ELEMENT_PICKER_CANCELLED' };

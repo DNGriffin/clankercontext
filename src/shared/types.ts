@@ -4,6 +4,12 @@ export type SessionState = 'idle' | 'monitoring' | 'selecting_element';
 // Issue Types
 export type IssueType = 'enhancement' | 'fix';
 
+// Captured element data
+export interface CapturedElement {
+  html: string;      // outerHTML of the element
+  selector: string;  // CSS selector for reference
+}
+
 // Issue - captured bug or enhancement request
 export interface Issue {
   id: string;
@@ -11,8 +17,7 @@ export interface Issue {
   timestamp: number;
   name: string;              // User-provided name for .md file
   userPrompt: string;        // User's description/request
-  elementHTML: string;       // outerHTML of selected element
-  elementSelector: string;   // CSS selector for reference
+  elements: CapturedElement[]; // Array of selected elements
   pageUrl: string;
 }
 
