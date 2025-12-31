@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { Issue, MonitoringSession } from '@/shared/types';
 import type { ExportResponse, StateResponse } from '@/shared/messages';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Sparkles,
   Wrench,
@@ -14,6 +13,7 @@ import {
   ArrowLeft,
   Play,
   Pause,
+  X,
 } from 'lucide-react';
 
 interface PopupState {
@@ -251,63 +251,59 @@ export function Popup(): React.ReactElement {
   // Show loading spinner on initial load
   if (state.loading && !state.session && state.issues.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[280px] gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <span className="text-base text-muted-foreground">Loading...</span>
+      <div className="flex flex-col items-center justify-center min-h-[200px] gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     );
   }
 
-  // Form view (full page)
+  // Form view (compact)
   if (view !== 'main') {
     const isEnhancement = view === 'enhancement';
     return (
-      <div className="flex flex-col h-full p-5">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col h-full p-4">
+        <div className="flex items-center gap-2 mb-4">
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 w-9 p-0"
+            className="h-8 w-8 p-0"
             onClick={() => {
               setView('main');
               setPrompt('');
             }}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-base font-semibold">
             {isEnhancement ? 'Modify' : 'Report Bug'}
           </h2>
         </div>
 
         {state.error && (
-          <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-4 py-3 text-base text-destructive mb-4">
-            <AlertCircle className="h-5 w-5 shrink-0" />
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive mb-3">
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{state.error}</span>
           </div>
         )}
 
-        <label className="text-base text-muted-foreground mb-3 block">
-          {isEnhancement
-            ? 'Describe what you want to change'
-            : 'Describe what needs fixed'}
-        </label>
         <textarea
-          className="w-full flex-1 p-4 border rounded-lg text-base resize-none bg-background mb-5 min-h-[120px]"
+          className="w-full flex-1 p-3 border rounded-lg text-sm resize-none bg-background mb-3 min-h-[100px]"
           placeholder={
             isEnhancement
-              ? 'e.g., Add a dark mode toggle to the settings panel'
-              : 'e.g., The button does not respond when clicked'
+              ? 'Describe what you want to change...'
+              : 'Describe what needs fixed...'
           }
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           autoFocus
         />
 
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Button
             variant="outline"
-            className="flex-1 h-12 text-base"
+            size="sm"
+            className="flex-1 h-9"
             onClick={() => {
               setView('main');
               setPrompt('');
@@ -316,11 +312,12 @@ export function Popup(): React.ReactElement {
             Cancel
           </Button>
           <Button
-            className="flex-1 h-12 text-base"
+            size="sm"
+            className="flex-1 h-9"
             onClick={handleSubmit}
             disabled={state.loading || !prompt.trim()}
           >
-            {state.loading && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
+            {state.loading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             Select Element
           </Button>
         </div>
@@ -328,12 +325,12 @@ export function Popup(): React.ReactElement {
     );
   }
 
-  // Main view
+  // Main view (compact)
   return (
-    <div className="flex flex-col gap-5 p-5">
-      {/* Header */}
-      <header className="flex items-center justify-between pb-2 border-b">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col p-3">
+      {/* Compact Header */}
+      <header className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
           <img
             src={
               !state.session || isPaused
@@ -343,182 +340,194 @@ export function Popup(): React.ReactElement {
                   : '/icons/icon-128.png'
             }
             alt="ClankerContext"
-            className="h-14 w-14 rounded"
+            className="h-8 w-8 rounded"
           />
-          <h1 className="text-xl font-semibold tracking-tight">ClankerContext</h1>
+          <span className="text-base font-semibold">ClankerContext</span>
         </div>
-        {state.session && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 w-9 p-0"
-            onClick={handleTogglePause}
-            disabled={togglingPause}
-            title={isPaused ? 'Resume listening' : 'Pause listening'}
-          >
-            {togglingPause ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : isPaused ? (
-              <Play className="h-5 w-5" />
-            ) : (
-              <Pause className="h-5 w-5" />
-            )}
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {state.session && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={handleTogglePause}
+                disabled={togglingPause}
+                title={isPaused ? 'Resume' : 'Pause'}
+              >
+                {togglingPause ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isPaused ? (
+                  <Play className="h-4 w-4" />
+                ) : (
+                  <Pause className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                onClick={handleClearSession}
+                title="End session"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       {/* Error message */}
       {state.error && (
-        <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-4 py-3 text-base text-destructive">
-          <AlertCircle className="h-5 w-5 shrink-0" />
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive mb-3">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{state.error}</span>
         </div>
       )}
 
-      {/* Start listening prompt - shown when no session */}
+      {/* Start listening - shown when no session */}
       {!state.session && (
-        <div className="flex flex-col items-center gap-4 py-8">
-          <p className="text-base text-muted-foreground text-center">
-            Click "Start listening" to begin debugging the browser.
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-sm text-muted-foreground text-center">
+            Start listening to capture errors and log issues.
           </p>
           <Button
             variant="default"
+            size="sm"
             onClick={handleStartListening}
-            className="h-12 px-6 text-base"
+            className="h-9 px-4"
             disabled={state.loading}
           >
             {state.loading ? (
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
-              <Play className="h-5 w-5 mr-2" />
+              <Play className="h-4 w-4 mr-2" />
             )}
             Start listening
           </Button>
         </div>
       )}
 
-      {/* Main action buttons - only shown when session exists */}
+      {/* Action buttons - side by side */}
       {state.session && (
-        <div className="flex flex-col gap-3">
+        <div className="flex gap-2 mb-3">
           <Button
             variant="default"
+            size="sm"
             onClick={() => setView('enhancement')}
-            className="w-full justify-start h-12 text-base"
+            className="flex-1 h-9"
             disabled={state.loading || isPaused}
           >
-            <Sparkles className="h-5 w-5 mr-3" />
-            Modify with AI
+            <Sparkles className="h-4 w-4 mr-2" />
+            Modify
           </Button>
           <Button
             variant="secondary"
+            size="sm"
             onClick={() => setView('fix')}
-            className="w-full justify-start h-12 text-base"
+            className="flex-1 h-9"
             disabled={state.loading || isPaused}
           >
-            <Wrench className="h-5 w-5 mr-3" />
-            Fix with AI
+            <Wrench className="h-4 w-4 mr-2" />
+            Fix
           </Button>
         </div>
       )}
 
-      {/* Issue list - only shown when session exists */}
+      {/* Compact issue list */}
       {state.session && state.issues.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <h2 className="text-base font-medium text-muted-foreground">
-            Logged Issues ({state.issues.length})
-          </h2>
-          <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1 mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Issues ({state.issues.length})
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => handleExportAll('clipboard')}
+                title="Copy all"
+              >
+                {copySuccess === 'all' ? (
+                  <span className="text-xs text-green-500">OK</span>
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => handleExportAll('download')}
+                title="Download all"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col border rounded-md divide-y">
             {state.issues.map((issue) => (
-              <Card key={issue.id} className="border bg-muted/30">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {issue.type === 'enhancement' ? (
-                        <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                      ) : (
-                        <Wrench className="h-4 w-4 text-orange-500 shrink-0" />
-                      )}
-                      <span className="text-base font-medium truncate" title={issue.name || 'Unnamed issue'}>
-                        {issue.name || 'Unnamed issue'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleExport(issue.id, 'clipboard')}
-                        title="Copy to clipboard"
-                      >
-                        {copySuccess === issue.id ? (
-                          <span className="text-sm text-green-500">OK</span>
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleExport(issue.id, 'download')}
-                        title="Download"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(issue.id)}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div
+                key={issue.id}
+                className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/50"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {issue.type === 'enhancement' ? (
+                    <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                  ) : (
+                    <Wrench className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                  )}
+                  <span
+                    className="text-sm truncate"
+                    title={issue.name || 'Unnamed issue'}
+                  >
+                    {issue.name || 'Unnamed issue'}
+                  </span>
+                </div>
+                <div className="flex items-center shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => handleExport(issue.id, 'clipboard')}
+                    title="Copy"
+                  >
+                    {copySuccess === issue.id ? (
+                      <span className="text-xs text-green-500">OK</span>
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => handleExport(issue.id, 'download')}
+                    title="Download"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDelete(issue.id)}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Export all / Clear session buttons - only shown when session exists */}
-      {state.session && state.issues.length > 0 && (
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={() => handleExportAll('download')}
-            className="flex-1 h-10"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export All
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleExportAll('clipboard')}
-            className="flex-1 h-10"
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            {copySuccess === 'all' ? 'Copied!' : 'Copy All'}
-          </Button>
-        </div>
-      )}
-
-      {state.session && (
-        <Button
-          variant="ghost"
-          onClick={handleClearSession}
-          className="text-muted-foreground"
-        >
-          Clear Session
-        </Button>
-      )}
-
       {/* Toast notification */}
       {toast && (
-        <div className="fixed bottom-4 left-4 right-4 flex items-center gap-2 rounded-md bg-destructive px-4 py-3 text-base text-destructive-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2">
-          <AlertCircle className="h-5 w-5 shrink-0" />
+        <div className="fixed bottom-3 left-3 right-3 flex items-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm text-destructive-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{toast}</span>
         </div>
       )}
