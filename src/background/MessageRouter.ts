@@ -134,7 +134,7 @@ async function handlePopupMessage(
       } catch (error) {
         // Clean up the session we just created
         await sessionStateMachine.forceReset(true);
-        await iconController.showDefaultIcon();
+        await iconController.showSleepIcon();
         throw error;
       }
 
@@ -331,8 +331,8 @@ async function handlePopupMessage(
       // Clear injection tracking
       injectedTabs.clear();
 
-      // Show default icon
-      await iconController.showDefaultIcon();
+      // Show sleep icon (same as paused - not actively monitoring)
+      await iconController.showSleepIcon();
 
       return true;
     }

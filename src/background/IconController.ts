@@ -36,9 +36,7 @@ class IconController {
    * Restore icon state based on session state.
    */
   async restoreState(isMonitoring: boolean, isPaused: boolean): Promise<void> {
-    if (!isMonitoring) {
-      await this.showDefaultIcon();
-    } else if (isPaused) {
+    if (!isMonitoring || isPaused) {
       await this.showSleepIcon();
     } else {
       await this.showActiveIcon();
