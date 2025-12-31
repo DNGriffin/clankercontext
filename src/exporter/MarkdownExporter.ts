@@ -184,11 +184,6 @@ class MarkdownExporter {
       lines.push('3. Identify the root cause of the issue');
       lines.push('4. Implement and test the fix');
     }
-    lines.push('');
-
-    // Footer
-    lines.push('---');
-    lines.push(`*Captured by ClankerContext on ${new Date(issue.timestamp).toLocaleString()}*`);
 
     return lines.join('\n');
   }
