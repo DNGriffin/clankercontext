@@ -71,7 +71,7 @@ body {
   line-height: 1.5;
   color: var(--color-foreground);
   background-color: var(--color-background);
-  width: 340px;
+  width: 420px;
   min-height: fit-content;
   max-height: 600px; /* Chrome's max popup height */
   overflow-y: auto;

@@ -18,27 +18,54 @@ class CDPController {
    * Attach the debugger to a tab.
    */
   async attach(tabId: number): Promise<void> {
+    // Clean up our internal state first
     if (this.attachedTabId !== null) {
       await this.detach();
     }
 
+    console.log('[CDP] Attaching to tab:', tabId);
+
     try {
       await chrome.debugger.attach({ tabId }, '1.3');
-      this.attachedTabId = tabId;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // If already attached (by us from before service worker restart), try to detach and reattach
+      if (errorMessage.includes('Another debugger is already attached')) {
+        console.log('[CDP] Another debugger attached, attempting to take over...');
+        try {
+          await chrome.debugger.detach({ tabId });
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          await chrome.debugger.attach({ tabId }, '1.3');
+        } catch (retryError) {
+          console.warn('[CDP] Failed to take over debugger:', retryError);
+          throw retryError;
+        }
+      } else {
+        console.warn('[CDP] Failed to attach:', error);
+        throw error;
+      }
+    }
 
-      // Enable only required domains
+    this.attachedTabId = tabId;
+
+    // Set up event listeners
+    this.setupEventListeners();
+
+    try {
+      // Enable required domains
       await this.sendCommand('Network.enable', {});
       await this.sendCommand('Console.enable', {});
       await this.sendCommand('Runtime.enable', {});
-
-      // Set up event listeners
-      this.setupEventListeners();
-
-      console.log('[CDP] Attached to tab:', tabId);
+      console.log('[CDP] Attached and enabled domains for tab:', tabId);
     } catch (error) {
-      // Use warn instead of error - these are expected for restricted pages
-      // (chrome://, Web Store, etc.) and are handled upstream with a toast
-      console.warn('[CDP] Failed to attach:', error);
+      // If enabling domains fails, the attach might have silently failed
+      console.warn('[CDP] Failed to enable domains:', error);
+      this.attachedTabId = null;
+      try {
+        await chrome.debugger.detach({ tabId });
+      } catch {
+        // Ignore
+      }
       throw error;
     }
   }

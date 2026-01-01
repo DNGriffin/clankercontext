@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Issue, MonitoringSession } from '@/shared/types';
-import type { ExportResponse, StateResponse } from '@/shared/messages';
+import type { ConnectionsResponse, ExportResponse, SendToOpenCodeResponse, StateResponse } from '@/shared/messages';
 import { Button } from '@/components/ui/button';
 import {
   Sparkles,
@@ -14,7 +14,11 @@ import {
   Play,
   Pause,
   X,
+  Settings,
+  Send,
+  Check,
 } from 'lucide-react';
+import { SettingsView } from './SettingsView';
 
 interface PopupState {
   loading: boolean;
@@ -22,9 +26,11 @@ interface PopupState {
   session: MonitoringSession | null;
   issues: Issue[];
   errorCount: { network: number; console: number };
+  autoSendingIssueId?: string;
+  autoSendError?: boolean;
 }
 
-type ViewState = 'main' | 'enhancement' | 'fix';
+type ViewState = 'main' | 'enhancement' | 'fix' | 'settings';
 
 export function Popup(): React.ReactElement {
   const [state, setState] = useState<PopupState>({
@@ -37,11 +43,34 @@ export function Popup(): React.ReactElement {
 
   const [view, setView] = useState<ViewState>('main');
   const [prompt, setPrompt] = useState('');
-  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<{ id: string; type: 'copy' | 'download' | 'send' } | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [iconToggle, setIconToggle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // OpenCode send state
+  const [sendingIssue, setSendingIssue] = useState<string | null>(null);
+  const [prevAutoSendingIssueId, setPrevAutoSendingIssueId] = useState<string | undefined>(undefined);
+
+  // Detect when auto-send completes and show success indicator
+  useEffect(() => {
+    if (prevAutoSendingIssueId && !state.autoSendingIssueId && !state.autoSendError) {
+      // Auto-send just completed successfully - show success indicator
+      setActionSuccess({ id: prevAutoSendingIssueId, type: 'send' });
+      setTimeout(() => setActionSuccess(null), 2000);
+    }
+    setPrevAutoSendingIssueId(state.autoSendingIssueId);
+  }, [state.autoSendingIssueId, state.autoSendError, prevAutoSendingIssueId]);
+
+  // Show toast when auto-send fails
+  useEffect(() => {
+    if (state.autoSendError) {
+      setToast('Failed, check your active connection in settings');
+      // Clear the error flag
+      chrome.storage.session.remove('autoSendError');
+    }
+  }, [state.autoSendError]);
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
@@ -78,6 +107,8 @@ export function Popup(): React.ReactElement {
         session: response.session,
         issues: response.issues,
         errorCount: response.errorCount,
+        autoSendingIssueId: response.autoSendingIssueId,
+        autoSendError: response.autoSendError,
       }));
       setIsPaused(response.isPaused);
     } catch (error) {
@@ -151,9 +182,18 @@ export function Popup(): React.ReactElement {
 
         if (format === 'clipboard' && response.markdown) {
           await navigator.clipboard.writeText(response.markdown);
-          setCopySuccess(issueId);
-          setTimeout(() => setCopySuccess(null), 2000);
         }
+
+        // Show success indicator
+        setActionSuccess({ id: issueId, type: format === 'clipboard' ? 'copy' : 'download' });
+        setTimeout(() => setActionSuccess(null), 2000);
+
+        // Mark as exported
+        await chrome.runtime.sendMessage({
+          type: 'MARK_ISSUE_EXPORTED',
+          issueId,
+        });
+        await fetchState();
       } catch (error) {
         setState((prev) => ({
           ...prev,
@@ -161,7 +201,7 @@ export function Popup(): React.ReactElement {
         }));
       }
     },
-    []
+    [fetchState]
   );
 
   // Export all issues
@@ -174,9 +214,11 @@ export function Popup(): React.ReactElement {
 
       if (format === 'clipboard' && response.markdown) {
         await navigator.clipboard.writeText(response.markdown);
-        setCopySuccess('all');
-        setTimeout(() => setCopySuccess(null), 2000);
       }
+
+      // Show success indicator
+      setActionSuccess({ id: 'all', type: format === 'clipboard' ? 'copy' : 'download' });
+      setTimeout(() => setActionSuccess(null), 2000);
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -199,6 +241,64 @@ export function Popup(): React.ReactElement {
     await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
     setIsPaused(false);
     await fetchState();
+  }, [fetchState]);
+
+  // Send issue to OpenCode
+  const handleSendClick = useCallback(async (issueId: string) => {
+    try {
+      setSendingIssue(issueId);
+
+      // Fetch enabled OpenCode connections with selected sessions
+      const response = (await chrome.runtime.sendMessage({
+        type: 'GET_CONNECTIONS',
+      })) as ConnectionsResponse;
+
+      const readyConnections = response.connections.filter(
+        (c) => c.type === 'opencode' && c.enabled && c.selectedSessionId
+      );
+
+      if (readyConnections.length === 0) {
+        // Check if there are connections without sessions
+        const hasConnections = response.connections.some(
+          (c) => c.type === 'opencode' && c.enabled
+        );
+        if (hasConnections) {
+          setToast('Select a session in Settings first');
+        } else {
+          setToast('Add an OpenCode connection in Settings');
+        }
+        setSendingIssue(null);
+        return;
+      }
+
+      // Use the first ready connection
+      const connection = readyConnections[0];
+
+      const sendResponse = (await chrome.runtime.sendMessage({
+        type: 'SEND_TO_OPENCODE',
+        connectionId: connection.id,
+        sessionId: connection.selectedSessionId,
+        issueId,
+      })) as SendToOpenCodeResponse;
+
+      if (sendResponse.success) {
+        // Show success indicator (green checkmark)
+        setActionSuccess({ id: issueId, type: 'send' });
+        setTimeout(() => setActionSuccess(null), 2000);
+        // Mark as exported
+        await chrome.runtime.sendMessage({
+          type: 'MARK_ISSUE_EXPORTED',
+          issueId,
+        });
+        await fetchState();
+      } else {
+        setToast('Failed, check your connection in Settings');
+      }
+    } catch (error) {
+      setToast('Failed, check your connection in Settings');
+    } finally {
+      setSendingIssue(null);
+    }
   }, [fetchState]);
 
   // Start listening (create session)
@@ -256,6 +356,11 @@ export function Popup(): React.ReactElement {
         <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     );
+  }
+
+  // Settings view
+  if (view === 'settings') {
+    return <SettingsView onBack={() => setView('main')} />;
   }
 
   // Form view (compact)
@@ -329,7 +434,7 @@ export function Popup(): React.ReactElement {
   return (
     <div className="flex flex-col p-3">
       {/* Compact Header */}
-      <header className="flex items-center justify-between mb-3">
+      <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <img
             src={
@@ -340,11 +445,20 @@ export function Popup(): React.ReactElement {
                   : '/icons/icon-128.png'
             }
             alt="ClankerContext"
-            className="h-8 w-8 rounded"
+            className="h-10 w-10 rounded"
           />
           <span className="text-base font-semibold">ClankerContext</span>
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setView('settings')}
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           {state.session && (
             <>
               <Button
@@ -449,8 +563,8 @@ export function Popup(): React.ReactElement {
                 onClick={() => handleExportAll('clipboard')}
                 title="Copy all"
               >
-                {copySuccess === 'all' ? (
-                  <span className="text-xs text-green-500">OK</span>
+                {actionSuccess?.id === 'all' && actionSuccess.type === 'copy' ? (
+                  <Check className="h-3 w-3 text-green-500" />
                 ) : (
                   <Copy className="h-3 w-3" />
                 )}
@@ -462,7 +576,11 @@ export function Popup(): React.ReactElement {
                 onClick={() => handleExportAll('download')}
                 title="Download all"
               >
-                <Download className="h-3 w-3" />
+                {actionSuccess?.id === 'all' && actionSuccess.type === 'download' ? (
+                  <Check className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
               </Button>
             </div>
           </div>
@@ -479,8 +597,8 @@ export function Popup(): React.ReactElement {
                     <Wrench className="h-3.5 w-3.5 text-orange-500 shrink-0" />
                   )}
                   <span
-                    className="text-sm truncate"
-                    title={issue.name || 'Unnamed issue'}
+                    className={`text-sm truncate ${issue.exportedAt ? 'line-through text-muted-foreground' : ''}`}
+                    title={issue.userPrompt || issue.name || 'Unnamed issue'}
                   >
                     {issue.name || 'Unnamed issue'}
                   </span>
@@ -490,11 +608,27 @@ export function Popup(): React.ReactElement {
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0"
+                    onClick={() => handleSendClick(issue.id)}
+                    title="Send to OpenCode"
+                    disabled={sendingIssue === issue.id || state.autoSendingIssueId === issue.id}
+                  >
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'send' ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : sendingIssue === issue.id || state.autoSendingIssueId === issue.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Send className="h-3 w-3" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
                     onClick={() => handleExport(issue.id, 'clipboard')}
                     title="Copy"
                   >
-                    {copySuccess === issue.id ? (
-                      <span className="text-xs text-green-500">OK</span>
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'copy' ? (
+                      <Check className="h-3 w-3 text-green-500" />
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}
@@ -506,7 +640,11 @@ export function Popup(): React.ReactElement {
                     onClick={() => handleExport(issue.id, 'download')}
                     title="Download"
                   >
-                    <Download className="h-3 w-3" />
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'download' ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Download className="h-3 w-3" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"

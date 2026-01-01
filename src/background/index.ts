@@ -14,6 +14,13 @@ import { initMessageRouter, clearInjectionTracking } from './MessageRouter';
 import { cdpController } from './CDPController';
 import { iconController } from './IconController';
 
+// Promise that resolves when initialization is complete
+// Used by message handlers to wait for session rehydration
+let initResolve: () => void;
+export const initPromise = new Promise<void>((resolve) => {
+  initResolve = resolve;
+});
+
 /**
  * Initialize the background service worker.
  */
@@ -57,6 +64,9 @@ async function init(): Promise<void> {
   sessionStateMachine.subscribe((event) => {
     console.log('[SessionStateMachine] Event:', event.type, event.state);
   });
+
+  // Signal that initialization is complete
+  initResolve();
 
   console.log('[ClankerContext] Background service worker initialized');
 }
