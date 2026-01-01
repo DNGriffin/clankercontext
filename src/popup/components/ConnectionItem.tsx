@@ -1,11 +1,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Power, PowerOff, Pencil, Trash2, Link2 } from 'lucide-react';
+import { Power, PowerOff, Pencil, Trash2, Link2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Connection } from '@/shared/types';
 
 interface ConnectionItemProps {
   connection: Connection;
+  healthStatus?: boolean; // true = healthy, false = unhealthy, undefined = checking
   onEdit: () => void;
   onToggle: (id: string, enabled: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -14,6 +15,7 @@ interface ConnectionItemProps {
 
 export function ConnectionItem({
   connection,
+  healthStatus,
   onEdit,
   onToggle,
   onDelete,
@@ -21,16 +23,31 @@ export function ConnectionItem({
 }: ConnectionItemProps): React.ReactElement {
   const hasSession = !!connection.selectedSessionId;
 
+  // Determine indicator color based on enabled state and health
+  // If not enabled, show gray regardless of health
+  // If enabled: green = healthy, red = unhealthy, spinner = checking
+  const getIndicator = () => {
+    if (!connection.enabled) {
+      return <div className="h-2 w-2 rounded-full shrink-0 bg-muted-foreground" />;
+    }
+    if (healthStatus === undefined) {
+      return <Loader2 className="h-2 w-2 shrink-0 animate-spin text-muted-foreground" />;
+    }
+    return (
+      <div
+        className={cn(
+          'h-2 w-2 rounded-full shrink-0',
+          healthStatus ? 'bg-green-500' : 'bg-red-500'
+        )}
+      />
+    );
+  };
+
   return (
     <div className="flex flex-col gap-1 px-3 py-2 hover:bg-muted/50">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div
-            className={cn(
-              'h-2 w-2 rounded-full shrink-0',
-              connection.enabled ? 'bg-green-500' : 'bg-muted-foreground'
-            )}
-          />
+          {getIndicator()}
           <span className="text-sm font-medium truncate">{connection.name}</span>
         </div>
         <div className="flex items-center shrink-0">

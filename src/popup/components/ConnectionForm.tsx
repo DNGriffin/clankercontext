@@ -17,7 +17,7 @@ export function ConnectionForm({
   onSave,
   onCancel,
 }: ConnectionFormProps): React.ReactElement {
-  const [name, setName] = useState(connection?.name || '');
+  const [name, setName] = useState(connection?.name || 'Default');
   const [type, setType] = useState<ConnectionType>(
     connection?.type || 'opencode'
   );

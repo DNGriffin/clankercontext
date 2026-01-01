@@ -49,7 +49,7 @@ export interface MonitoringSession {
 }
 
 // Connection Types - extensible for future integrations
-export type ConnectionType = 'opencode' | 'claude-code' | 'cursor';
+export type ConnectionType = 'opencode';
 
 // Connection - represents a configured coding tool integration
 export interface Connection {

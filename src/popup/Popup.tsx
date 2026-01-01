@@ -26,6 +26,8 @@ interface PopupState {
   session: MonitoringSession | null;
   issues: Issue[];
   errorCount: { network: number; console: number };
+  autoSendingIssueId?: string;
+  autoSendError?: boolean;
 }
 
 type ViewState = 'main' | 'enhancement' | 'fix' | 'settings';
@@ -49,6 +51,26 @@ export function Popup(): React.ReactElement {
 
   // OpenCode send state
   const [sendingIssue, setSendingIssue] = useState<string | null>(null);
+  const [prevAutoSendingIssueId, setPrevAutoSendingIssueId] = useState<string | undefined>(undefined);
+
+  // Detect when auto-send completes and show success indicator
+  useEffect(() => {
+    if (prevAutoSendingIssueId && !state.autoSendingIssueId && !state.autoSendError) {
+      // Auto-send just completed successfully - show success indicator
+      setActionSuccess({ id: prevAutoSendingIssueId, type: 'send' });
+      setTimeout(() => setActionSuccess(null), 2000);
+    }
+    setPrevAutoSendingIssueId(state.autoSendingIssueId);
+  }, [state.autoSendingIssueId, state.autoSendError, prevAutoSendingIssueId]);
+
+  // Show toast when auto-send fails
+  useEffect(() => {
+    if (state.autoSendError) {
+      setToast('Failed, check your active connection in settings');
+      // Clear the error flag
+      chrome.storage.session.remove('autoSendError');
+    }
+  }, [state.autoSendError]);
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
@@ -85,6 +107,8 @@ export function Popup(): React.ReactElement {
         session: response.session,
         issues: response.issues,
         errorCount: response.errorCount,
+        autoSendingIssueId: response.autoSendingIssueId,
+        autoSendError: response.autoSendError,
       }));
       setIsPaused(response.isPaused);
     } catch (error) {
@@ -268,10 +292,10 @@ export function Popup(): React.ReactElement {
         });
         await fetchState();
       } else {
-        setToast(sendResponse.error || 'Failed to send');
+        setToast('Failed, check your connection in Settings');
       }
     } catch (error) {
-      setToast('Failed to send to OpenCode');
+      setToast('Failed, check your connection in Settings');
     } finally {
       setSendingIssue(null);
     }
@@ -586,11 +610,11 @@ export function Popup(): React.ReactElement {
                     className="h-6 w-6 p-0"
                     onClick={() => handleSendClick(issue.id)}
                     title="Send to OpenCode"
-                    disabled={sendingIssue === issue.id}
+                    disabled={sendingIssue === issue.id || state.autoSendingIssueId === issue.id}
                   >
                     {actionSuccess?.id === issue.id && actionSuccess.type === 'send' ? (
                       <Check className="h-3 w-3 text-green-500" />
-                    ) : sendingIssue === issue.id ? (
+                    ) : sendingIssue === issue.id || state.autoSendingIssueId === issue.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
                       <Send className="h-3 w-3" />

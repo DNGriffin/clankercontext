@@ -18,16 +18,6 @@ export const CONNECTION_TYPES = {
     description: 'Local HTTP API for OpenCode',
     defaultEndpoint: 'http://localhost:4096',
   },
-  'claude-code': {
-    label: 'Claude Code',
-    description: 'Claude Code CLI integration',
-    defaultEndpoint: '',
-  },
-  cursor: {
-    label: 'Cursor',
-    description: 'Cursor editor integration',
-    defaultEndpoint: '',
-  },
 } as const;
 
 // DOM capture configuration

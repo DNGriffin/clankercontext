@@ -27,6 +27,8 @@ export interface StateResponse {
   issues: Issue[];
   errorCount: { network: number; console: number };
   isPaused: boolean;
+  autoSendingIssueId?: string; // Issue currently being auto-sent to OpenCode
+  autoSendError?: boolean; // True if auto-send failed
 }
 
 export interface ExportResponse {

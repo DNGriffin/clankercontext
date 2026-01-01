@@ -109,15 +109,19 @@ async function handlePopupMessage(
         errorCount = await storageManager.getErrorCounts(session.sessionId);
       }
 
-      // Get paused state
-      const pausedResult = await chrome.storage.session.get('isPaused');
-      const isPaused = pausedResult.isPaused === true;
+      // Get paused state and auto-sending state
+      const storageResult = await chrome.storage.session.get(['isPaused', 'autoSendingIssueId', 'autoSendError']);
+      const isPaused = storageResult.isPaused === true;
+      const autoSendingIssueId = storageResult.autoSendingIssueId as string | undefined;
+      const autoSendError = storageResult.autoSendError === true;
 
       return {
         session,
         issues,
         errorCount,
         isPaused,
+        autoSendingIssueId,
+        autoSendError,
       } as StateResponse;
     }
 
@@ -515,18 +519,13 @@ async function handleContentMessage(
       // Return to monitoring state
       await sessionStateMachine.finishElementSelection();
 
-      // Open the extension popup FIRST so user sees it immediately
-      try {
-        await chrome.action.openPopup();
-      } catch (e) {
-        // openPopup may fail if not supported or user gesture required
-        console.warn('[MessageRouter] Could not open popup:', e);
-      }
+      // Check if we should auto-send BEFORE opening popup
+      let shouldAutoSend = false;
+      let autoSendConnection: Connection | undefined;
 
-      // Auto-send to OpenCode if configured (runs after popup opens)
       try {
         const connections = await storageManager.getConnections();
-        const readyConnection = connections.find(
+        autoSendConnection = connections.find(
           (c) =>
             c.type === 'opencode' &&
             c.enabled &&
@@ -534,34 +533,57 @@ async function handleContentMessage(
             c.autoSend !== false // Default true
         );
 
-        if (readyConnection && readyConnection.selectedSessionId) {
+        if (autoSendConnection && autoSendConnection.selectedSessionId) {
           // Check if session is idle before sending
           const status = await openCodeClient.getSessionStatus(
-            readyConnection.endpoint,
-            readyConnection.selectedSessionId
+            autoSendConnection.endpoint,
+            autoSendConnection.selectedSessionId
           );
+          shouldAutoSend = status.type === 'idle';
 
-          if (status.type === 'idle') {
-            // Send the issue
-            const markdown = await markdownExporter.exportIssue(
-              session.sessionId,
-              issue.id
-            );
-            await openCodeClient.sendMessage(
-              readyConnection.endpoint,
-              readyConnection.selectedSessionId,
-              markdown
-            );
-            // Mark as exported
-            await storageManager.markIssueExported(issue.id);
-            console.log('[MessageRouter] Auto-sent issue to OpenCode');
-          } else {
+          if (!shouldAutoSend) {
             console.log('[MessageRouter] OpenCode session busy, skipping auto-send');
           }
         }
       } catch (e) {
-        // Silently fail - auto-send is best-effort
-        console.warn('[MessageRouter] Auto-send failed:', e);
+        console.warn('[MessageRouter] Failed to check auto-send eligibility:', e);
+      }
+
+      // Set auto-sending state BEFORE opening popup so it shows loading immediately
+      if (shouldAutoSend) {
+        await chrome.storage.session.set({ autoSendingIssueId: issue.id });
+      }
+
+      // Open the extension popup
+      try {
+        await chrome.action.openPopup();
+      } catch (e) {
+        console.warn('[MessageRouter] Could not open popup:', e);
+      }
+
+      // Now do the actual auto-send
+      if (shouldAutoSend && autoSendConnection && autoSendConnection.selectedSessionId) {
+        try {
+          const markdown = await markdownExporter.exportIssue(
+            session.sessionId,
+            issue.id
+          );
+          await openCodeClient.sendMessage(
+            autoSendConnection.endpoint,
+            autoSendConnection.selectedSessionId,
+            markdown
+          );
+          // Mark as exported
+          await storageManager.markIssueExported(issue.id);
+          console.log('[MessageRouter] Auto-sent issue to OpenCode');
+          // Clear auto-sending state on success
+          await chrome.storage.session.remove('autoSendingIssueId');
+        } catch (e) {
+          console.warn('[MessageRouter] Auto-send failed:', e);
+          // Set error flag and clear sending state
+          await chrome.storage.session.set({ autoSendError: true });
+          await chrome.storage.session.remove('autoSendingIssueId');
+        }
       }
 
       return true;

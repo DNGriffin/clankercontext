@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, Loader2, AlertCircle } from 'lucide-react';
 import type { Connection, OpenCodeSession } from '@/shared/types';
-import type { ConnectionsResponse, ConnectionMutationResponse } from '@/shared/messages';
+import type { ConnectionsResponse, ConnectionMutationResponse, TestConnectionResponse } from '@/shared/messages';
 import { ConnectionItem } from './components/ConnectionItem';
 import { ConnectionForm } from './components/ConnectionForm';
 import { SessionPicker } from './components/SessionPicker';
@@ -23,6 +23,32 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
   // Session picker state
   const [sessionPickerConnection, setSessionPickerConnection] = useState<Connection | null>(null);
 
+  // Connection health status: true = healthy, false = unhealthy, undefined = checking
+  const [connectionHealth, setConnectionHealth] = useState<Record<string, boolean | undefined>>({});
+
+  // Check health of all connections
+  const checkConnectionsHealth = useCallback(async (conns: Connection[]) => {
+    // Set all to checking (undefined)
+    const initialHealth: Record<string, boolean | undefined> = {};
+    conns.forEach(c => { initialHealth[c.id] = undefined; });
+    setConnectionHealth(initialHealth);
+
+    // Check each connection in parallel
+    await Promise.all(
+      conns.map(async (conn) => {
+        try {
+          const response = (await chrome.runtime.sendMessage({
+            type: 'TEST_CONNECTION',
+            connectionId: conn.id,
+          })) as TestConnectionResponse;
+          setConnectionHealth(prev => ({ ...prev, [conn.id]: response.success }));
+        } catch {
+          setConnectionHealth(prev => ({ ...prev, [conn.id]: false }));
+        }
+      })
+    );
+  }, []);
+
   const fetchConnections = useCallback(async () => {
     try {
       setLoading(true);
@@ -31,12 +57,14 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
       })) as ConnectionsResponse;
       setConnections(response.connections);
       setError(null);
+      // Check health of all connections after fetching
+      checkConnectionsHealth(response.connections);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load connections');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [checkConnectionsHealth]);
 
   useEffect(() => {
     fetchConnections();
@@ -143,6 +171,16 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
     [sessionPickerConnection, fetchConnections]
   );
 
+  if (sessionPickerConnection) {
+    return (
+      <SessionPicker
+        connection={sessionPickerConnection}
+        onSelect={handleSessionSelect}
+        onClose={() => setSessionPickerConnection(null)}
+      />
+    );
+  }
+
   if (isAddingNew || editingConnection) {
     return (
       <ConnectionForm
@@ -217,6 +255,7 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
               <ConnectionItem
                 key={conn.id}
                 connection={conn}
+                healthStatus={connectionHealth[conn.id]}
                 onEdit={() => setEditingConnection(conn)}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -227,14 +266,6 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
         )}
       </section>
 
-      {/* Session Picker Modal */}
-      {sessionPickerConnection && (
-        <SessionPicker
-          connection={sessionPickerConnection}
-          onSelect={handleSessionSelect}
-          onClose={() => setSessionPickerConnection(null)}
-        />
-      )}
     </div>
   );
 }
