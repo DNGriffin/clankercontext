@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Issue, MonitoringSession } from '@/shared/types';
-import type { ExportResponse, StateResponse } from '@/shared/messages';
+import type { ConnectionsResponse, ExportResponse, SendToOpenCodeResponse, StateResponse } from '@/shared/messages';
 import { Button } from '@/components/ui/button';
 import {
   Sparkles,
@@ -14,7 +14,10 @@ import {
   Play,
   Pause,
   X,
+  Settings,
+  Send,
 } from 'lucide-react';
+import { SettingsView } from './SettingsView';
 
 interface PopupState {
   loading: boolean;
@@ -24,7 +27,7 @@ interface PopupState {
   errorCount: { network: number; console: number };
 }
 
-type ViewState = 'main' | 'enhancement' | 'fix';
+type ViewState = 'main' | 'enhancement' | 'fix' | 'settings';
 
 export function Popup(): React.ReactElement {
   const [state, setState] = useState<PopupState>({
@@ -42,6 +45,9 @@ export function Popup(): React.ReactElement {
   const [togglingPause, setTogglingPause] = useState(false);
   const [iconToggle, setIconToggle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // OpenCode send state
+  const [sendingIssue, setSendingIssue] = useState<string | null>(null);
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
@@ -154,6 +160,13 @@ export function Popup(): React.ReactElement {
           setCopySuccess(issueId);
           setTimeout(() => setCopySuccess(null), 2000);
         }
+
+        // Mark as exported
+        await chrome.runtime.sendMessage({
+          type: 'MARK_ISSUE_EXPORTED',
+          issueId,
+        });
+        await fetchState();
       } catch (error) {
         setState((prev) => ({
           ...prev,
@@ -161,7 +174,7 @@ export function Popup(): React.ReactElement {
         }));
       }
     },
-    []
+    [fetchState]
   );
 
   // Export all issues
@@ -199,6 +212,62 @@ export function Popup(): React.ReactElement {
     await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
     setIsPaused(false);
     await fetchState();
+  }, [fetchState]);
+
+  // Send issue to OpenCode
+  const handleSendClick = useCallback(async (issueId: string) => {
+    try {
+      setSendingIssue(issueId);
+
+      // Fetch enabled OpenCode connections with selected sessions
+      const response = (await chrome.runtime.sendMessage({
+        type: 'GET_CONNECTIONS',
+      })) as ConnectionsResponse;
+
+      const readyConnections = response.connections.filter(
+        (c) => c.type === 'opencode' && c.enabled && c.selectedSessionId
+      );
+
+      if (readyConnections.length === 0) {
+        // Check if there are connections without sessions
+        const hasConnections = response.connections.some(
+          (c) => c.type === 'opencode' && c.enabled
+        );
+        if (hasConnections) {
+          setToast('Select a session in Settings first');
+        } else {
+          setToast('Add an OpenCode connection in Settings');
+        }
+        setSendingIssue(null);
+        return;
+      }
+
+      // Use the first ready connection
+      const connection = readyConnections[0];
+
+      const sendResponse = (await chrome.runtime.sendMessage({
+        type: 'SEND_TO_OPENCODE',
+        connectionId: connection.id,
+        sessionId: connection.selectedSessionId,
+        issueId,
+      })) as SendToOpenCodeResponse;
+
+      if (sendResponse.success) {
+        setToast(`Sent to: ${connection.selectedSessionTitle || 'OpenCode'}`);
+        // Mark as exported
+        await chrome.runtime.sendMessage({
+          type: 'MARK_ISSUE_EXPORTED',
+          issueId,
+        });
+        await fetchState();
+      } else {
+        setToast(sendResponse.error || 'Failed to send');
+      }
+    } catch (error) {
+      setToast('Failed to send to OpenCode');
+    } finally {
+      setSendingIssue(null);
+    }
   }, [fetchState]);
 
   // Start listening (create session)
@@ -256,6 +325,11 @@ export function Popup(): React.ReactElement {
         <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     );
+  }
+
+  // Settings view
+  if (view === 'settings') {
+    return <SettingsView onBack={() => setView('main')} />;
   }
 
   // Form view (compact)
@@ -345,6 +419,15 @@ export function Popup(): React.ReactElement {
           <span className="text-base font-semibold">ClankerContext</span>
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setView('settings')}
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           {state.session && (
             <>
               <Button
@@ -479,13 +562,27 @@ export function Popup(): React.ReactElement {
                     <Wrench className="h-3.5 w-3.5 text-orange-500 shrink-0" />
                   )}
                   <span
-                    className="text-sm truncate"
+                    className={`text-sm truncate ${issue.exportedAt ? 'line-through text-muted-foreground' : ''}`}
                     title={issue.name || 'Unnamed issue'}
                   >
                     {issue.name || 'Unnamed issue'}
                   </span>
                 </div>
                 <div className="flex items-center shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => handleSendClick(issue.id)}
+                    title="Send to OpenCode"
+                    disabled={sendingIssue === issue.id}
+                  >
+                    {sendingIssue === issue.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Send className="h-3 w-3" />
+                    )}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

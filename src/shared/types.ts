@@ -19,6 +19,7 @@ export interface Issue {
   userPrompt: string;        // User's description/request
   elements: CapturedElement[]; // Array of selected elements
   pageUrl: string;
+  exportedAt?: number;       // Timestamp when issue was exported/sent
 }
 
 // Network Error - only non-2XX responses
@@ -45,4 +46,31 @@ export interface MonitoringSession {
   tabId: number;
   state: SessionState;
   pendingIssueType?: IssueType; // Set when user starts creating an issue
+}
+
+// Connection Types - extensible for future integrations
+export type ConnectionType = 'opencode' | 'claude-code' | 'cursor';
+
+// Connection - represents a configured coding tool integration
+export interface Connection {
+  id: string;
+  name: string;
+  type: ConnectionType;
+  endpoint: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  // Selected OpenCode session (for opencode type)
+  selectedSessionId?: string;
+  selectedSessionTitle?: string;
+  // Auto-send issues to this connection (default: true)
+  autoSend?: boolean;
+}
+
+// OpenCode session info (from OpenCode API)
+export interface OpenCodeSession {
+  id: string;
+  title: string;
+  directory: string;
+  updatedAt: number;
 }

@@ -1,5 +1,6 @@
 import { IDB_CONFIG } from '@/shared/constants';
 import type {
+  Connection,
   ConsoleError,
   Issue,
   MonitoringSession,
@@ -86,6 +87,15 @@ class StorageManager {
       });
       store.createIndex('sessionId', 'sessionId', { unique: false });
       store.createIndex('timestamp', 'timestamp', { unique: false });
+    }
+
+    // Connections store (added in version 4)
+    if (!db.objectStoreNames.contains(IDB_CONFIG.STORES.CONNECTIONS)) {
+      const store = db.createObjectStore(IDB_CONFIG.STORES.CONNECTIONS, {
+        keyPath: 'id',
+      });
+      store.createIndex('type', 'type', { unique: false });
+      store.createIndex('enabled', 'enabled', { unique: false });
     }
   }
 
@@ -243,6 +253,32 @@ class StorageManager {
     return this.delete(IDB_CONFIG.STORES.ISSUES, issueId);
   }
 
+  async markIssueExported(issueId: string): Promise<void> {
+    await this.init();
+    const db = this.db!;
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.ISSUES, 'readwrite');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.ISSUES);
+
+      const getRequest = store.get(issueId);
+
+      getRequest.onsuccess = () => {
+        const issue = getRequest.result;
+        if (issue) {
+          issue.exportedAt = Date.now();
+          const putRequest = store.put(issue);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        } else {
+          resolve(); // Issue not found, just resolve
+        }
+      };
+
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
   // Network error operations
   async addNetworkError(sessionId: string, error: NetworkError): Promise<IDBValidKey> {
     return this.add(IDB_CONFIG.STORES.NETWORK_ERRORS, { ...error, sessionId });
@@ -297,6 +333,59 @@ class StorageManager {
   async deleteSession(sessionId: string): Promise<void> {
     await this.clearSessionData(sessionId);
     await this.delete(IDB_CONFIG.STORES.SESSIONS, sessionId);
+  }
+
+  // Connection operations
+  async getConnections(): Promise<Connection[]> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.CONNECTIONS, 'readonly');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.CONNECTIONS);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result as Connection[]);
+      request.onerror = () =>
+        reject(new Error(`Failed to get connections: ${request.error?.message}`));
+    });
+  }
+
+  async getConnectionById(id: string): Promise<Connection | null> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.CONNECTIONS, 'readonly');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.CONNECTIONS);
+      const request = store.get(id);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () =>
+        reject(new Error(`Failed to get connection: ${request.error?.message}`));
+    });
+  }
+
+  async addConnection(connection: Connection): Promise<IDBValidKey> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.CONNECTIONS, 'readwrite');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.CONNECTIONS);
+      const request = store.add(connection);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error(`Failed to add connection: ${request.error?.message}`));
+    });
+  }
+
+  async updateConnection(connection: Connection): Promise<IDBValidKey> {
+    return this.put(IDB_CONFIG.STORES.CONNECTIONS, connection);
+  }
+
+  async deleteConnection(connectionId: string): Promise<void> {
+    return this.delete(IDB_CONFIG.STORES.CONNECTIONS, connectionId);
+  }
+
+  async getEnabledConnections(): Promise<Connection[]> {
+    const connections = await this.getConnections();
+    return connections.filter(c => c.enabled);
   }
 }
 

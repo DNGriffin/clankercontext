@@ -1,16 +1,22 @@
 import type {
   BackgroundToContentMessage,
+  ConnectionMutationResponse,
+  ConnectionsResponse,
   ContentToBackgroundMessage,
   ExportResponse,
+  OpenCodeSessionsResponse,
   PopupToBackgroundMessage,
+  SendToOpenCodeResponse,
   StateResponse,
+  TestConnectionResponse,
 } from '@/shared/messages';
-import type { Issue } from '@/shared/types';
+import type { Connection, Issue } from '@/shared/types';
 import { storageManager } from './StorageManager';
 import { sessionStateMachine } from './SessionStateMachine';
 import { markdownExporter } from '@/exporter/MarkdownExporter';
 import { cdpController } from './CDPController';
 import { iconController } from './IconController';
+import { openCodeClient } from './OpenCodeClient';
 
 // Track tabs where content script has been injected
 const injectedTabs = new Set<number>();
@@ -91,7 +97,7 @@ async function downloadMarkdown(content: string, filename: string): Promise<void
 async function handlePopupMessage(
   message: PopupToBackgroundMessage,
   _sender: chrome.runtime.MessageSender
-): Promise<StateResponse | ExportResponse | boolean> {
+): Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | boolean> {
   switch (message.type) {
     case 'GET_STATE': {
       const session = sessionStateMachine.getSession();
@@ -319,6 +325,11 @@ async function handlePopupMessage(
       return true;
     }
 
+    case 'MARK_ISSUE_EXPORTED': {
+      await storageManager.markIssueExported(message.issueId);
+      return true;
+    }
+
     case 'CLEAR_SESSION': {
       // Detach CDP
       if (cdpController.isAttached()) {
@@ -335,6 +346,115 @@ async function handlePopupMessage(
       await iconController.showSleepIcon();
 
       return true;
+    }
+
+    case 'GET_CONNECTIONS': {
+      const connections = await storageManager.getConnections();
+      return { connections } as ConnectionsResponse;
+    }
+
+    case 'ADD_CONNECTION': {
+      const now = Date.now();
+      const connection: Connection = {
+        ...message.connection,
+        id: `conn_${now}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await storageManager.addConnection(connection);
+      return { success: true, connection } as ConnectionMutationResponse;
+    }
+
+    case 'UPDATE_CONNECTION': {
+      const updated: Connection = {
+        ...message.connection,
+        updatedAt: Date.now(),
+      };
+      await storageManager.updateConnection(updated);
+      return { success: true } as ConnectionMutationResponse;
+    }
+
+    case 'DELETE_CONNECTION': {
+      await storageManager.deleteConnection(message.connectionId);
+      return { success: true } as ConnectionMutationResponse;
+    }
+
+    case 'TOGGLE_CONNECTION': {
+      const connection = await storageManager.getConnectionById(message.connectionId);
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      const toggled: Connection = {
+        ...connection,
+        enabled: message.enabled,
+        updatedAt: Date.now(),
+      };
+      await storageManager.updateConnection(toggled);
+      return { success: true } as ConnectionMutationResponse;
+    }
+
+    case 'TEST_CONNECTION': {
+      const connection = await storageManager.getConnectionById(message.connectionId);
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      try {
+        const health = await openCodeClient.checkHealth(connection.endpoint);
+        return { success: health.healthy, version: health.version } as TestConnectionResponse;
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Connection failed',
+        } as TestConnectionResponse;
+      }
+    }
+
+    case 'GET_OPENCODE_SESSIONS': {
+      const connection = await storageManager.getConnectionById(message.connectionId);
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      try {
+        const sessionsRaw = await openCodeClient.getSessions(connection.endpoint);
+        // Transform to our simplified OpenCodeSession interface
+        const sessions = sessionsRaw.map((s) => ({
+          id: s.id,
+          title: s.title || 'Untitled Session',
+          directory: s.directory,
+          updatedAt: s.time.updated,
+        }));
+        return { sessions } as OpenCodeSessionsResponse;
+      } catch (error) {
+        return {
+          sessions: [],
+          error: error instanceof Error ? error.message : 'Failed to get sessions',
+        } as OpenCodeSessionsResponse;
+      }
+    }
+
+    case 'SEND_TO_OPENCODE': {
+      const connection = await storageManager.getConnectionById(message.connectionId);
+      const monitoringSession = sessionStateMachine.getSession();
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      if (!monitoringSession) {
+        throw new Error('No active monitoring session');
+      }
+
+      try {
+        const markdown = await markdownExporter.exportIssue(
+          monitoringSession.sessionId,
+          message.issueId
+        );
+        await openCodeClient.sendMessage(connection.endpoint, message.sessionId, markdown);
+        return { success: true } as SendToOpenCodeResponse;
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to send to OpenCode',
+        } as SendToOpenCodeResponse;
+      }
     }
 
     default:
@@ -395,12 +515,53 @@ async function handleContentMessage(
       // Return to monitoring state
       await sessionStateMachine.finishElementSelection();
 
-      // Open the extension popup to show the logged issue
+      // Open the extension popup FIRST so user sees it immediately
       try {
         await chrome.action.openPopup();
       } catch (e) {
         // openPopup may fail if not supported or user gesture required
-        console.log('[MessageRouter] Could not open popup:', e);
+        console.warn('[MessageRouter] Could not open popup:', e);
+      }
+
+      // Auto-send to OpenCode if configured (runs after popup opens)
+      try {
+        const connections = await storageManager.getConnections();
+        const readyConnection = connections.find(
+          (c) =>
+            c.type === 'opencode' &&
+            c.enabled &&
+            c.selectedSessionId &&
+            c.autoSend !== false // Default true
+        );
+
+        if (readyConnection && readyConnection.selectedSessionId) {
+          // Check if session is idle before sending
+          const status = await openCodeClient.getSessionStatus(
+            readyConnection.endpoint,
+            readyConnection.selectedSessionId
+          );
+
+          if (status.type === 'idle') {
+            // Send the issue
+            const markdown = await markdownExporter.exportIssue(
+              session.sessionId,
+              issue.id
+            );
+            await openCodeClient.sendMessage(
+              readyConnection.endpoint,
+              readyConnection.selectedSessionId,
+              markdown
+            );
+            // Mark as exported
+            await storageManager.markIssueExported(issue.id);
+            console.log('[MessageRouter] Auto-sent issue to OpenCode');
+          } else {
+            console.log('[MessageRouter] OpenCode session busy, skipping auto-send');
+          }
+        }
+      } catch (e) {
+        // Silently fail - auto-send is best-effort
+        console.warn('[MessageRouter] Auto-send failed:', e);
       }
 
       return true;
@@ -430,7 +591,7 @@ export function initMessageRouter(): void {
     const isFromPopup = !sender.tab;
     const isFromContent = !!sender.tab;
 
-    let handlePromise: Promise<StateResponse | ExportResponse | boolean>;
+    let handlePromise: Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | boolean>;
 
     if (isFromPopup) {
       handlePromise = handlePopupMessage(
