@@ -123,6 +123,8 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
           if (response.error) {
             throw new Error(response.error);
           }
+          setEditingConnection(null);
+          await fetchConnections();
         } else {
           const response = (await chrome.runtime.sendMessage({
             type: 'ADD_CONNECTION',
@@ -131,10 +133,13 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
           if (response.error) {
             throw new Error(response.error);
           }
+          setIsAddingNew(false);
+          await fetchConnections();
+          // Immediately open session picker for the new connection
+          if (response.connection && data.type === 'opencode') {
+            setSessionPickerConnection(response.connection);
+          }
         }
-        setEditingConnection(null);
-        setIsAddingNew(false);
-        await fetchConnections();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to save connection');
       }

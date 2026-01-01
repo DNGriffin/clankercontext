@@ -10,6 +10,8 @@ interface SessionPickerProps {
   onClose: () => void;
 }
 
+const SESSION_HINT = "Don't see your session? Make sure you've sent at least one chat first for it to show up here.";
+
 function formatTimeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
 
@@ -101,7 +103,7 @@ export function SessionPicker({
             Start a session in OpenCode first.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            Don't see your session? Make sure you've sent at least one chat first for it to show up here.
+            {SESSION_HINT}
           </p>
         </div>
       ) : (
@@ -123,7 +125,7 @@ export function SessionPicker({
             ))}
           </div>
           <p className="text-xs text-muted-foreground text-center mt-3">
-            Don't see your session? Make sure you've sent at least one chat first for it to show up here.
+            {SESSION_HINT}
           </p>
         </div>
       )}

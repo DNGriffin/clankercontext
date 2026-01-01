@@ -382,11 +382,6 @@ class StorageManager {
   async deleteConnection(connectionId: string): Promise<void> {
     return this.delete(IDB_CONFIG.STORES.CONNECTIONS, connectionId);
   }
-
-  async getEnabledConnections(): Promise<Connection[]> {
-    const connections = await this.getConnections();
-    return connections.filter(c => c.enabled);
-  }
 }
 
 // Export singleton instance
