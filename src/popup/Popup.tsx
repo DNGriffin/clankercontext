@@ -434,7 +434,7 @@ export function Popup(): React.ReactElement {
   return (
     <div className="flex flex-col p-3">
       {/* Compact Header */}
-      <header className="flex items-center justify-between mb-3">
+      <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <img
             src={
@@ -445,7 +445,7 @@ export function Popup(): React.ReactElement {
                   : '/icons/icon-128.png'
             }
             alt="ClankerContext"
-            className="h-8 w-8 rounded"
+            className="h-10 w-10 rounded"
           />
           <span className="text-base font-semibold">ClankerContext</span>
         </div>
@@ -598,7 +598,7 @@ export function Popup(): React.ReactElement {
                   )}
                   <span
                     className={`text-sm truncate ${issue.exportedAt ? 'line-through text-muted-foreground' : ''}`}
-                    title={issue.name || 'Unnamed issue'}
+                    title={issue.userPrompt || issue.name || 'Unnamed issue'}
                   >
                     {issue.name || 'Unnamed issue'}
                   </span>

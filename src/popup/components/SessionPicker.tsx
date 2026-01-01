@@ -100,23 +100,31 @@ export function SessionPicker({
           <p className="text-xs text-muted-foreground">
             Start a session in OpenCode first.
           </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Don't see your session? Make sure you've sent at least one chat first for it to show up here.
+          </p>
         </div>
       ) : (
-        <div className="flex flex-col border rounded-md divide-y flex-1 overflow-y-auto">
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              className="flex flex-col px-3 py-2 text-left hover:bg-muted/50 transition-colors"
-              onClick={() => onSelect(session)}
-            >
-              <span className="text-sm font-medium truncate">
-                {session.title || 'Untitled Session'}
-              </span>
-              <span className="text-xs text-muted-foreground truncate">
-                {session.directory} &bull; {formatTimeAgo(session.updatedAt)}
-              </span>
-            </button>
-          ))}
+        <div className="flex flex-col flex-1">
+          <div className="flex flex-col border rounded-md divide-y flex-1 overflow-y-auto">
+            {sessions.map((session) => (
+              <button
+                key={session.id}
+                className="flex flex-col px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                onClick={() => onSelect(session)}
+              >
+                <span className="text-sm font-medium truncate">
+                  {session.title || 'Untitled Session'}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {session.directory} &bull; {formatTimeAgo(session.updatedAt)}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            Don't see your session? Make sure you've sent at least one chat first for it to show up here.
+          </p>
         </div>
       )}
     </div>

@@ -17,6 +17,7 @@ import { markdownExporter } from '@/exporter/MarkdownExporter';
 import { cdpController } from './CDPController';
 import { iconController } from './IconController';
 import { openCodeClient } from './OpenCodeClient';
+import { initPromise } from './index';
 
 // Track tabs where content script has been injected
 const injectedTabs = new Set<number>();
@@ -98,6 +99,10 @@ async function handlePopupMessage(
   message: PopupToBackgroundMessage,
   _sender: chrome.runtime.MessageSender
 ): Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | boolean> {
+  // Wait for initialization to complete (ensures session is rehydrated)
+  // This prevents race conditions when service worker restarts
+  await initPromise;
+
   switch (message.type) {
     case 'GET_STATE': {
       const session = sessionStateMachine.getSession();
@@ -131,8 +136,15 @@ async function handlePopupMessage(
         currentWindow: true,
       });
 
+      console.log('[MessageRouter] START_LISTENING - tab:', tab?.id, 'url:', tab?.url);
+
       if (!tab?.id || !tab.url) {
         throw new Error('No active tab found');
+      }
+
+      // Check if this is a restricted page
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('devtools://')) {
+        throw new Error('Cannot attach debugger to this page');
       }
 
       // Start monitoring
@@ -184,8 +196,15 @@ async function handlePopupMessage(
         currentWindow: true,
       });
 
+      console.log('[MessageRouter] RESUME_LISTENING - tab:', tab?.id, 'url:', tab?.url);
+
       if (!tab?.id) {
         throw new Error('No active tab found');
+      }
+
+      // Check if this is a restricted page
+      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://') || tab.url?.startsWith('devtools://')) {
+        throw new Error('Cannot attach debugger to this page');
       }
 
       // If tab changed while paused, update session to current tab

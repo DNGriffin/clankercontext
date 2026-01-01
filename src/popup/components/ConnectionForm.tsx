@@ -17,7 +17,7 @@ export function ConnectionForm({
   onSave,
   onCancel,
 }: ConnectionFormProps): React.ReactElement {
-  const [name, setName] = useState(connection?.name || 'Default');
+  const [name, setName] = useState(connection?.name || 'Default - OpenCode');
   const [type, setType] = useState<ConnectionType>(
     connection?.type || 'opencode'
   );
@@ -70,6 +70,7 @@ export function ConnectionForm({
           placeholder="My OpenCode Instance"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          spellCheck={false}
           autoFocus
         />
 
