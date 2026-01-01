@@ -16,6 +16,7 @@ import {
   X,
   Settings,
   Send,
+  Check,
 } from 'lucide-react';
 import { SettingsView } from './SettingsView';
 
@@ -40,7 +41,7 @@ export function Popup(): React.ReactElement {
 
   const [view, setView] = useState<ViewState>('main');
   const [prompt, setPrompt] = useState('');
-  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<{ id: string; type: 'copy' | 'download' | 'send' } | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [iconToggle, setIconToggle] = useState(false);
@@ -157,9 +158,11 @@ export function Popup(): React.ReactElement {
 
         if (format === 'clipboard' && response.markdown) {
           await navigator.clipboard.writeText(response.markdown);
-          setCopySuccess(issueId);
-          setTimeout(() => setCopySuccess(null), 2000);
         }
+
+        // Show success indicator
+        setActionSuccess({ id: issueId, type: format === 'clipboard' ? 'copy' : 'download' });
+        setTimeout(() => setActionSuccess(null), 2000);
 
         // Mark as exported
         await chrome.runtime.sendMessage({
@@ -187,9 +190,11 @@ export function Popup(): React.ReactElement {
 
       if (format === 'clipboard' && response.markdown) {
         await navigator.clipboard.writeText(response.markdown);
-        setCopySuccess('all');
-        setTimeout(() => setCopySuccess(null), 2000);
       }
+
+      // Show success indicator
+      setActionSuccess({ id: 'all', type: format === 'clipboard' ? 'copy' : 'download' });
+      setTimeout(() => setActionSuccess(null), 2000);
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -253,7 +258,9 @@ export function Popup(): React.ReactElement {
       })) as SendToOpenCodeResponse;
 
       if (sendResponse.success) {
-        setToast(`Sent to: ${connection.selectedSessionTitle || 'OpenCode'}`);
+        // Show success indicator (green checkmark)
+        setActionSuccess({ id: issueId, type: 'send' });
+        setTimeout(() => setActionSuccess(null), 2000);
         // Mark as exported
         await chrome.runtime.sendMessage({
           type: 'MARK_ISSUE_EXPORTED',
@@ -532,8 +539,8 @@ export function Popup(): React.ReactElement {
                 onClick={() => handleExportAll('clipboard')}
                 title="Copy all"
               >
-                {copySuccess === 'all' ? (
-                  <span className="text-xs text-green-500">OK</span>
+                {actionSuccess?.id === 'all' && actionSuccess.type === 'copy' ? (
+                  <Check className="h-3 w-3 text-green-500" />
                 ) : (
                   <Copy className="h-3 w-3" />
                 )}
@@ -545,7 +552,11 @@ export function Popup(): React.ReactElement {
                 onClick={() => handleExportAll('download')}
                 title="Download all"
               >
-                <Download className="h-3 w-3" />
+                {actionSuccess?.id === 'all' && actionSuccess.type === 'download' ? (
+                  <Check className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
               </Button>
             </div>
           </div>
@@ -577,7 +588,9 @@ export function Popup(): React.ReactElement {
                     title="Send to OpenCode"
                     disabled={sendingIssue === issue.id}
                   >
-                    {sendingIssue === issue.id ? (
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'send' ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : sendingIssue === issue.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
                       <Send className="h-3 w-3" />
@@ -590,8 +603,8 @@ export function Popup(): React.ReactElement {
                     onClick={() => handleExport(issue.id, 'clipboard')}
                     title="Copy"
                   >
-                    {copySuccess === issue.id ? (
-                      <span className="text-xs text-green-500">OK</span>
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'copy' ? (
+                      <Check className="h-3 w-3 text-green-500" />
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}
@@ -603,7 +616,11 @@ export function Popup(): React.ReactElement {
                     onClick={() => handleExport(issue.id, 'download')}
                     title="Download"
                   >
-                    <Download className="h-3 w-3" />
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'download' ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Download className="h-3 w-3" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
