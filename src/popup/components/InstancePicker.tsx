@@ -10,7 +10,24 @@ interface InstancePickerProps {
   onClose: () => void;
 }
 
-const INSTANCE_HINT = "Don't see your VSCode? Make sure the ClankerContext extension is installed and running in VSCode.";
+const VSCODE_EXTENSION_URL = "https://marketplace.visualstudio.com/items?itemName=clankercontext.clankercontext";
+
+function InstanceHint(): React.ReactElement {
+  return (
+    <span>
+      Don't see your VSCode? Make sure the{' '}
+      <a
+        href={VSCODE_EXTENSION_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary underline hover:text-primary/80"
+      >
+        ClankerContext extension
+      </a>{' '}
+      is installed and running in VSCode.
+    </span>
+  );
+}
 
 function formatTimeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -88,7 +105,16 @@ export function InstancePicker({
             Failed to fetch VSCode instances.
           </p>
           <p className="text-xs text-muted-foreground">
-            Ensure the ClankerContext VSCode extension is running.
+            Ensure the{' '}
+            <a
+              href={VSCODE_EXTENSION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline hover:text-primary/80"
+            >
+              ClankerContext VSCode extension
+            </a>{' '}
+            is running.
           </p>
           <Button variant="outline" size="sm" onClick={fetchInstances}>
             Retry
@@ -100,10 +126,19 @@ export function InstancePicker({
             No VSCode windows found.
           </p>
           <p className="text-xs text-muted-foreground">
-            Open a VSCode window with ClankerContext extension first.
+            Open a VSCode window with the{' '}
+            <a
+              href={VSCODE_EXTENSION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline hover:text-primary/80"
+            >
+              ClankerContext extension
+            </a>{' '}
+            first.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            {INSTANCE_HINT}
+            <InstanceHint />
           </p>
           <Button variant="outline" size="sm" onClick={fetchInstances} className="mt-2">
             Refresh
@@ -128,7 +163,7 @@ export function InstancePicker({
             ))}
           </div>
           <p className="text-xs text-muted-foreground text-center mt-3">
-            {INSTANCE_HINT}
+            <InstanceHint />
           </p>
         </div>
       )}
