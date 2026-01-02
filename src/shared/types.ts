@@ -49,7 +49,7 @@ export interface MonitoringSession {
 }
 
 // Connection Types - extensible for future integrations
-export type ConnectionType = 'opencode';
+export type ConnectionType = 'opencode' | 'vscode';
 
 // Connection - represents a configured coding tool integration
 export interface Connection {
@@ -63,8 +63,15 @@ export interface Connection {
   // Selected OpenCode session (for opencode type)
   selectedSessionId?: string;
   selectedSessionTitle?: string;
+  // Selected VSCode instance (for vscode type)
+  selectedInstanceId?: string;
+  selectedInstanceName?: string;
+  selectedInstancePath?: string;
+  selectedInstancePort?: number;
   // Auto-send issues to this connection (default: true)
   autoSend?: boolean;
+  // Whether this is the active connection for sending
+  isActive?: boolean;
 }
 
 // OpenCode session info (from OpenCode API)
@@ -73,4 +80,14 @@ export interface OpenCodeSession {
   title: string;
   directory: string;
   updatedAt: number;
+}
+
+// VSCode instance info (from VSCode extension API)
+export interface VSCodeInstance {
+  id: string;
+  name: string;
+  workspacePath: string;
+  port: number;
+  pid: number;
+  lastHeartbeat: number;
 }

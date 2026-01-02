@@ -1,0 +1,88 @@
+{
+  "name": "clankercontext",
+  "displayName": "ClankerContext",
+  "description": "Capture bugs and feature requests from any website and send them directly to GitHub Copilot Chat with full context",
+  "version": "1.0.0",
+  "publisher": "clankercontext",
+  "license": "MIT",
+  "extensionDependencies": [
+    "GitHub.copilot-chat"
+  ],
+  "icon": "icon.png",
+  "homepage": "https://clankercontext.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DNGriffin/clankercontext"
+  },
+  "bugs": {
+    "url": "https://github.com/DNGriffin/clankercontext/issues"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Testing"
+  ],
+  "keywords": [
+    "clanker",
+    "clankercontext",
+    "copilot",
+    "debugging",
+    "bug-report",
+    "context",
+    "ai",
+    "chrome-extension"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "ClankerContext",
+      "properties": {
+        "clankercontext.port": {
+          "type": "number",
+          "default": 41970,
+          "description": "Port for the local HTTP server"
+        },
+        "clankercontext.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start the server when VSCode opens"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "clankercontext.startServer",
+        "title": "ClankerContext: Start Server"
+      },
+      {
+        "command": "clankercontext.stopServer",
+        "title": "ClankerContext: Stop Server"
+      },
+      {
+        "command": "clankercontext.showStatus",
+        "title": "ClankerContext: Show Status"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

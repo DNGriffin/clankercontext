@@ -18,6 +18,11 @@ export const CONNECTION_TYPES = {
     description: 'Local HTTP API for OpenCode',
     defaultEndpoint: 'http://localhost:4096',
   },
+  vscode: {
+    label: 'VSCode + Copilot',
+    description: 'Send to GitHub Copilot Chat in Agent Mode',
+    defaultEndpoint: 'http://localhost:41970',
+  },
 } as const;
 
 // DOM capture configuration
