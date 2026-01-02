@@ -241,7 +241,6 @@ export class HttpServer {
       // 404 for unknown routes
       this.sendJson(res, 404, { error: 'Not found' }, validOrigin);
     } catch (err) {
-      console.error('Request handler error:', err);
       this.sendJson(res, 500, {
         error: err instanceof Error ? err.message : 'Internal server error',
       }, validOrigin);
@@ -274,15 +273,14 @@ export class HttpServer {
       }
 
       this.server = http.createServer((req, res) => {
-        this.handleRequest(req, res).catch(err => {
-          console.error('Unhandled request error:', err);
+        this.handleRequest(req, res).catch(() => {
+          // Error already handled in handleRequest
         });
       });
 
       this.server.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
           // Port is in use - try the next port
-          console.log(`Port ${port} is in use, trying ${port + 1}...`);
           this.server = null;
           this.tryPort(port + 1, maxAttempts - 1).then(resolve).catch(reject);
         } else {
@@ -293,7 +291,6 @@ export class HttpServer {
       // Bind to localhost only for security
       this.server.listen(port, '127.0.0.1', () => {
         this.port = port; // Update the port to the one we're actually using
-        console.log(`ClankerContext server listening on http://127.0.0.1:${port}`);
         resolve(port);
       });
     });

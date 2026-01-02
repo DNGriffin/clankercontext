@@ -40,6 +40,16 @@ This context is then sent directly to GitHub Copilot Chat in agent mode, giving 
 - **ClankerContext: Stop Server** - Stop the local server
 - **ClankerContext: Show Status** - Show server status and Copilot availability
 
+## Privacy
+
+ClankerContext is designed with privacy in mind:
+
+- **All data stays local** - No data is sent to external servers
+- **Local HTTP server** - Communication between Chrome extension and VS Code happens only on localhost (127.0.0.1)
+- **Instance registry** - Creates `~/.clankercontext/instances.json` to enable multi-instance VS Code discovery
+- **No telemetry** - We do not collect any usage data or analytics
+- **Open source** - Full source code is available for review
+
 ## Links
 
 - [Website](https://clankercontext.com)

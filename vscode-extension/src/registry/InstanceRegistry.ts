@@ -282,9 +282,8 @@ export class InstanceRegistry {
       await this.modifyRegistry(instances => {
         return instances.filter(i => i.id !== this.instanceId);
       });
-    } catch (err) {
-      // Log but don't throw - we're shutting down anyway
-      console.error('Failed to unregister from registry:', err);
+    } catch {
+      // Ignore errors - we're shutting down anyway
     }
   }
 
@@ -316,9 +315,8 @@ export class InstanceRegistry {
 
         return instances;
       });
-    } catch (err) {
-      console.error('Failed to update heartbeat:', err);
-      // Don't throw - heartbeat will retry
+    } catch {
+      // Ignore errors - heartbeat will retry
     }
   }
 
@@ -328,8 +326,8 @@ export class InstanceRegistry {
   private startHeartbeat(): void {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
-      this.updateHeartbeat().catch(err => {
-        console.error('Heartbeat error:', err);
+      this.updateHeartbeat().catch(() => {
+        // Ignore errors - updateHeartbeat handles them internally
       });
     }, HEARTBEAT_INTERVAL);
   }

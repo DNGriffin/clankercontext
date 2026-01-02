@@ -114,8 +114,6 @@ function showStatus(): void {
  * Extension activation
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  console.log('ClankerContext for VSCode is activating...');
-
   // Register commands
   const startCmd = vscode.commands.registerCommand('clankercontext.startServer', startServer);
   const stopCmd = vscode.commands.registerCommand('clankercontext.stopServer', stopServer);
@@ -130,20 +128,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   if (autoStart !== false) {
     // Small delay to let VSCode fully initialize
     setTimeout(() => {
-      startServer().catch(err => {
-        console.error('Failed to auto-start ClankerContext server:', err);
+      startServer().catch(() => {
+        // Server start failure is already shown to user via showErrorMessage
       });
     }, 1000);
   }
-
-  console.log('ClankerContext for VSCode activated');
 }
 
 /**
  * Extension deactivation
  */
 export async function deactivate(): Promise<void> {
-  console.log('ClankerContext for VSCode is deactivating...');
   await stopServer();
-  console.log('ClankerContext for VSCode deactivated');
 }
