@@ -24,15 +24,21 @@ export function ConnectionForm({
   const [endpoint, setEndpoint] = useState(
     connection?.endpoint || CONNECTION_TYPES.opencode.defaultEndpoint
   );
-  const [enabled, setEnabled] = useState(connection?.enabled ?? true);
-  const [autoSend, setAutoSend] = useState(connection?.autoSend ?? true);
+  // Default autoSend to true for OpenCode, false for VSCode (since we can't track completion)
+  const getDefaultAutoSend = (connectionType: ConnectionType) => connectionType === 'opencode';
+  const [autoSend, setAutoSend] = useState(connection?.autoSend ?? getDefaultAutoSend(connection?.type || 'opencode'));
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({ name, type, endpoint, enabled, autoSend });
+      // For VSCode, use default endpoint (port scanning handles discovery)
+      const finalEndpoint = type === 'vscode'
+        ? CONNECTION_TYPES.vscode.defaultEndpoint
+        : endpoint;
+      // New connections are always enabled by default
+      await onSave({ name, type, endpoint: finalEndpoint, enabled: true, autoSend });
     } finally {
       setSaving(false);
     }
@@ -42,6 +48,10 @@ export function ConnectionForm({
     setType(newType);
     if (!connection) {
       setEndpoint(CONNECTION_TYPES[newType].defaultEndpoint);
+      // Update default name based on type
+      setName(newType === 'vscode' ? 'Default - VSCode' : 'Default - OpenCode');
+      // Update autoSend default based on type
+      setAutoSend(getDefaultAutoSend(newType));
     }
   };
 
@@ -87,44 +97,33 @@ export function ConnectionForm({
           ))}
         </select>
 
-        <label className="text-xs text-muted-foreground mb-1">
-          Endpoint URL
-        </label>
-        <input
-          type="url"
-          className="w-full p-2 border rounded-md text-sm mb-3 bg-background"
-          placeholder="http://localhost:3000"
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-        />
+        {type === 'opencode' && (
+          <>
+            <label className="text-xs text-muted-foreground mb-1">
+              Endpoint URL
+            </label>
+            <input
+              type="url"
+              className="w-full p-2 border rounded-md text-sm mb-3 bg-background"
+              placeholder="http://localhost:3000"
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+            />
+          </>
+        )}
 
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <input
             type="checkbox"
-            id="enabled"
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
+            id="autoSend"
+            checked={autoSend}
+            onChange={(e) => setAutoSend(e.target.checked)}
             className="h-4 w-4"
           />
-          <label htmlFor="enabled" className="text-sm">
-            Enabled
+          <label htmlFor="autoSend" className="text-sm">
+            Auto-send issues when logged
           </label>
         </div>
-
-        {type === 'opencode' && (
-          <div className="flex items-center gap-2 mb-4">
-            <input
-              type="checkbox"
-              id="autoSend"
-              checked={autoSend}
-              onChange={(e) => setAutoSend(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <label htmlFor="autoSend" className="text-sm">
-              Auto-send issues when logged
-            </label>
-          </div>
-        )}
 
         <div className="flex gap-2 mt-auto">
           <Button
@@ -140,7 +139,7 @@ export function ConnectionForm({
             type="submit"
             size="sm"
             className="flex-1"
-            disabled={!name.trim() || !endpoint.trim() || saving}
+            disabled={!name.trim() || (type === 'opencode' && !endpoint.trim()) || saving}
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             {connection ? 'Save' : 'Add'}

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Issue, MonitoringSession } from '@/shared/types';
-import type { ConnectionsResponse, ExportResponse, SendToOpenCodeResponse, StateResponse } from '@/shared/messages';
+import type { ConnectionsResponse, ExportResponse, SendToOpenCodeResponse, SendToVSCodeResponse, StateResponse } from '@/shared/messages';
 import { Button } from '@/components/ui/button';
 import {
   Sparkles,
@@ -17,6 +17,7 @@ import {
   Settings,
   Send,
   Check,
+  CheckCheck,
 } from 'lucide-react';
 import { SettingsView } from './SettingsView';
 
@@ -27,6 +28,7 @@ interface PopupState {
   issues: Issue[];
   errorCount: { network: number; console: number };
   autoSendingIssueId?: string;
+  autoSendingConnectionType?: 'opencode' | 'vscode';
   autoSendError?: boolean;
 }
 
@@ -43,25 +45,29 @@ export function Popup(): React.ReactElement {
 
   const [view, setView] = useState<ViewState>('main');
   const [prompt, setPrompt] = useState('');
-  const [actionSuccess, setActionSuccess] = useState<{ id: string; type: 'copy' | 'download' | 'send' } | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<{ id: string; type: 'copy' | 'download' | 'send' | 'sent' } | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [iconToggle, setIconToggle] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // OpenCode send state
+  // Send state
   const [sendingIssue, setSendingIssue] = useState<string | null>(null);
   const [prevAutoSendingIssueId, setPrevAutoSendingIssueId] = useState<string | undefined>(undefined);
+  const [prevAutoSendingConnectionType, setPrevAutoSendingConnectionType] = useState<'opencode' | 'vscode' | undefined>(undefined);
 
   // Detect when auto-send completes and show success indicator
   useEffect(() => {
     if (prevAutoSendingIssueId && !state.autoSendingIssueId && !state.autoSendError) {
       // Auto-send just completed successfully - show success indicator
-      setActionSuccess({ id: prevAutoSendingIssueId, type: 'send' });
+      // Use 'sent' for VSCode (double check), 'send' for OpenCode (single check)
+      const successType = prevAutoSendingConnectionType === 'vscode' ? 'sent' : 'send';
+      setActionSuccess({ id: prevAutoSendingIssueId, type: successType });
       setTimeout(() => setActionSuccess(null), 2000);
     }
     setPrevAutoSendingIssueId(state.autoSendingIssueId);
-  }, [state.autoSendingIssueId, state.autoSendError, prevAutoSendingIssueId]);
+    setPrevAutoSendingConnectionType(state.autoSendingConnectionType);
+  }, [state.autoSendingIssueId, state.autoSendingConnectionType, state.autoSendError, prevAutoSendingIssueId, prevAutoSendingConnectionType]);
 
   // Show toast when auto-send fails
   useEffect(() => {
@@ -108,6 +114,7 @@ export function Popup(): React.ReactElement {
         issues: response.issues,
         errorCount: response.errorCount,
         autoSendingIssueId: response.autoSendingIssueId,
+        autoSendingConnectionType: response.autoSendingConnectionType,
         autoSendError: response.autoSendError,
       }));
       setIsPaused(response.isPaused);
@@ -243,47 +250,60 @@ export function Popup(): React.ReactElement {
     await fetchState();
   }, [fetchState]);
 
-  // Send issue to OpenCode
+  // Send issue to the active connection (OpenCode or VSCode)
   const handleSendClick = useCallback(async (issueId: string) => {
     try {
-      setSendingIssue(issueId);
-
-      // Fetch enabled OpenCode connections with selected sessions
+      // Fetch all connections first to determine type
       const response = (await chrome.runtime.sendMessage({
         type: 'GET_CONNECTIONS',
       })) as ConnectionsResponse;
 
-      const readyConnections = response.connections.filter(
-        (c) => c.type === 'opencode' && c.enabled && c.selectedSessionId
-      );
+      // Find the active connection
+      const activeConnection = response.connections.find((c) => c.isActive && c.enabled);
 
-      if (readyConnections.length === 0) {
-        // Check if there are connections without sessions
-        const hasConnections = response.connections.some(
-          (c) => c.type === 'opencode' && c.enabled
-        );
-        if (hasConnections) {
-          setToast('Select a session in Settings first');
-        } else {
-          setToast('Add an OpenCode connection in Settings');
-        }
+      if (!activeConnection) {
+        setToast('No active connection. Select one in Settings.');
+        return;
+      }
+
+      // Set sending state - only show spinner for OpenCode
+      if (activeConnection.type === 'opencode') {
+        setSendingIssue(issueId);
+      }
+
+      // Check if connection is ready (has session/instance selected)
+      const isReady =
+        (activeConnection.type === 'opencode' && activeConnection.selectedSessionId) ||
+        (activeConnection.type === 'vscode' && activeConnection.selectedInstanceId);
+
+      if (!isReady) {
+        setToast('Select a session/instance for your active connection');
         setSendingIssue(null);
         return;
       }
 
-      // Use the first ready connection
-      const connection = readyConnections[0];
+      let sendResponse: SendToOpenCodeResponse | SendToVSCodeResponse;
 
-      const sendResponse = (await chrome.runtime.sendMessage({
-        type: 'SEND_TO_OPENCODE',
-        connectionId: connection.id,
-        sessionId: connection.selectedSessionId,
-        issueId,
-      })) as SendToOpenCodeResponse;
+      if (activeConnection.type === 'opencode') {
+        sendResponse = (await chrome.runtime.sendMessage({
+          type: 'SEND_TO_OPENCODE',
+          connectionId: activeConnection.id,
+          sessionId: activeConnection.selectedSessionId,
+          issueId,
+        })) as SendToOpenCodeResponse;
+      } else {
+        sendResponse = (await chrome.runtime.sendMessage({
+          type: 'SEND_TO_VSCODE',
+          connectionId: activeConnection.id,
+          instanceId: activeConnection.selectedInstanceId,
+          issueId,
+        })) as SendToVSCodeResponse;
+      }
 
       if (sendResponse.success) {
-        // Show success indicator (green checkmark)
-        setActionSuccess({ id: issueId, type: 'send' });
+        // Show success indicator - 'sent' for VSCode (double check), 'send' for OpenCode (single check)
+        const successType = activeConnection.type === 'vscode' ? 'sent' : 'send';
+        setActionSuccess({ id: issueId, type: successType });
         setTimeout(() => setActionSuccess(null), 2000);
         // Mark as exported
         await chrome.runtime.sendMessage({
@@ -609,12 +629,18 @@ export function Popup(): React.ReactElement {
                     size="sm"
                     className="h-6 w-6 p-0"
                     onClick={() => handleSendClick(issue.id)}
-                    title="Send to OpenCode"
+                    title="Send"
                     disabled={sendingIssue === issue.id || state.autoSendingIssueId === issue.id}
                   >
-                    {actionSuccess?.id === issue.id && actionSuccess.type === 'send' ? (
+                    {actionSuccess?.id === issue.id && actionSuccess.type === 'sent' ? (
+                      <CheckCheck className="h-3 w-3 text-green-500" />
+                    ) : actionSuccess?.id === issue.id && actionSuccess.type === 'send' ? (
                       <Check className="h-3 w-3 text-green-500" />
-                    ) : sendingIssue === issue.id || state.autoSendingIssueId === issue.id ? (
+                    ) : sendingIssue === issue.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : state.autoSendingIssueId === issue.id && state.autoSendingConnectionType === 'vscode' ? (
+                      <Send className="h-3 w-3 text-blue-500" />
+                    ) : state.autoSendingIssueId === issue.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
                       <Send className="h-3 w-3" />

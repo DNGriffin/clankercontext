@@ -1,4 +1,4 @@
-import type { CapturedElement, Connection, Issue, IssueType, MonitoringSession, OpenCodeSession } from './types';
+import type { CapturedElement, Connection, Issue, IssueType, MonitoringSession, OpenCodeSession, VSCodeInstance } from './types';
 
 // Popup -> Background messages
 export type PopupToBackgroundMessage =
@@ -17,9 +17,12 @@ export type PopupToBackgroundMessage =
   | { type: 'UPDATE_CONNECTION'; connection: Connection }
   | { type: 'DELETE_CONNECTION'; connectionId: string }
   | { type: 'TOGGLE_CONNECTION'; connectionId: string; enabled: boolean }
+  | { type: 'SET_ACTIVE_CONNECTION'; connectionId: string }
   | { type: 'TEST_CONNECTION'; connectionId: string }
   | { type: 'GET_OPENCODE_SESSIONS'; connectionId: string }
-  | { type: 'SEND_TO_OPENCODE'; connectionId: string; sessionId: string; issueId: string };
+  | { type: 'SEND_TO_OPENCODE'; connectionId: string; sessionId: string; issueId: string }
+  | { type: 'GET_VSCODE_INSTANCES'; connectionId: string }
+  | { type: 'SEND_TO_VSCODE'; connectionId: string; instanceId: string; issueId: string };
 
 // Background -> Popup responses
 export interface StateResponse {
@@ -27,7 +30,8 @@ export interface StateResponse {
   issues: Issue[];
   errorCount: { network: number; console: number };
   isPaused: boolean;
-  autoSendingIssueId?: string; // Issue currently being auto-sent to OpenCode
+  autoSendingIssueId?: string; // Issue currently being auto-sent
+  autoSendingConnectionType?: 'opencode' | 'vscode'; // Type of connection for auto-send
   autoSendError?: boolean; // True if auto-send failed
 }
 
@@ -61,6 +65,17 @@ export interface OpenCodeSessionsResponse {
 }
 
 export interface SendToOpenCodeResponse {
+  success: boolean;
+  error?: string;
+}
+
+// VSCode responses
+export interface VSCodeInstancesResponse {
+  instances: VSCodeInstance[];
+  error?: string;
+}
+
+export interface SendToVSCodeResponse {
   success: boolean;
   error?: string;
 }

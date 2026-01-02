@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, Loader2, AlertCircle } from 'lucide-react';
-import type { Connection, OpenCodeSession } from '@/shared/types';
+import type { Connection, OpenCodeSession, VSCodeInstance } from '@/shared/types';
 import type { ConnectionsResponse, ConnectionMutationResponse, TestConnectionResponse } from '@/shared/messages';
 import { ConnectionItem } from './components/ConnectionItem';
 import { ConnectionForm } from './components/ConnectionForm';
 import { SessionPicker } from './components/SessionPicker';
+import { InstancePicker } from './components/InstancePicker';
 
 interface SettingsViewProps {
   onBack: () => void;
@@ -20,8 +21,11 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
   );
   const [isAddingNew, setIsAddingNew] = useState(false);
 
-  // Session picker state
+  // Session picker state (for OpenCode)
   const [sessionPickerConnection, setSessionPickerConnection] = useState<Connection | null>(null);
+
+  // Instance picker state (for VSCode)
+  const [instancePickerConnection, setInstancePickerConnection] = useState<Connection | null>(null);
 
   // Connection health status: true = healthy, false = unhealthy, undefined = checking
   const [connectionHealth, setConnectionHealth] = useState<Record<string, boolean | undefined>>({});
@@ -107,6 +111,24 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
     [fetchConnections]
   );
 
+  const handleSetActive = useCallback(
+    async (id: string) => {
+      try {
+        const response = (await chrome.runtime.sendMessage({
+          type: 'SET_ACTIVE_CONNECTION',
+          connectionId: id,
+        })) as ConnectionMutationResponse;
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchConnections();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to set active connection');
+      }
+    },
+    [fetchConnections]
+  );
+
   const handleSave = useCallback(
     async (
       data: Omit<Connection, 'id' | 'createdAt' | 'updatedAt'>
@@ -135,9 +157,13 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
           }
           setIsAddingNew(false);
           await fetchConnections();
-          // Immediately open session picker for the new connection
-          if (response.connection && data.type === 'opencode') {
-            setSessionPickerConnection(response.connection);
+          // Immediately open session/instance picker for the new connection
+          if (response.connection) {
+            if (data.type === 'opencode') {
+              setSessionPickerConnection(response.connection);
+            } else if (data.type === 'vscode') {
+              setInstancePickerConnection(response.connection);
+            }
           }
         }
       } catch (e) {
@@ -147,7 +173,7 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
     [editingConnection, fetchConnections]
   );
 
-  // Handle session selection from picker
+  // Handle session selection from picker (OpenCode)
   const handleSessionSelect = useCallback(
     async (session: OpenCodeSession) => {
       if (!sessionPickerConnection) return;
@@ -176,12 +202,53 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
     [sessionPickerConnection, fetchConnections]
   );
 
+  // Handle instance selection from picker (VSCode)
+  const handleInstanceSelect = useCallback(
+    async (instance: VSCodeInstance) => {
+      if (!instancePickerConnection) return;
+
+      try {
+        const response = (await chrome.runtime.sendMessage({
+          type: 'UPDATE_CONNECTION',
+          connection: {
+            ...instancePickerConnection,
+            selectedInstanceId: instance.id,
+            selectedInstanceName: instance.name || 'Untitled Workspace',
+            selectedInstancePath: instance.workspacePath,
+            selectedInstancePort: instance.port,
+          },
+        })) as ConnectionMutationResponse;
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
+        setInstancePickerConnection(null);
+        await fetchConnections();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to save instance');
+        setInstancePickerConnection(null);
+      }
+    },
+    [instancePickerConnection, fetchConnections]
+  );
+
   if (sessionPickerConnection) {
     return (
       <SessionPicker
         connection={sessionPickerConnection}
         onSelect={handleSessionSelect}
         onClose={() => setSessionPickerConnection(null)}
+      />
+    );
+  }
+
+  if (instancePickerConnection) {
+    return (
+      <InstancePicker
+        connection={instancePickerConnection}
+        onSelect={handleInstanceSelect}
+        onClose={() => setInstancePickerConnection(null)}
       />
     );
   }
@@ -265,6 +332,8 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
                 onToggle={handleToggle}
                 onDelete={handleDelete}
                 onSelectSession={setSessionPickerConnection}
+                onSelectInstance={setInstancePickerConnection}
+                onSetActive={handleSetActive}
               />
             ))}
           </div>

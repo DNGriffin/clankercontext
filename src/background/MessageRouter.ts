@@ -7,8 +7,10 @@ import type {
   OpenCodeSessionsResponse,
   PopupToBackgroundMessage,
   SendToOpenCodeResponse,
+  SendToVSCodeResponse,
   StateResponse,
   TestConnectionResponse,
+  VSCodeInstancesResponse,
 } from '@/shared/messages';
 import type { Connection, Issue } from '@/shared/types';
 import { storageManager } from './StorageManager';
@@ -17,6 +19,7 @@ import { markdownExporter } from '@/exporter/MarkdownExporter';
 import { cdpController } from './CDPController';
 import { iconController } from './IconController';
 import { openCodeClient } from './OpenCodeClient';
+import { vsCodeClient } from './VSCodeClient';
 import { initPromise } from './index';
 
 // Track tabs where content script has been injected
@@ -98,7 +101,7 @@ async function downloadMarkdown(content: string, filename: string): Promise<void
 async function handlePopupMessage(
   message: PopupToBackgroundMessage,
   _sender: chrome.runtime.MessageSender
-): Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | boolean> {
+): Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | VSCodeInstancesResponse | SendToVSCodeResponse | boolean> {
   // Wait for initialization to complete (ensures session is rehydrated)
   // This prevents race conditions when service worker restarts
   await initPromise;
@@ -115,9 +118,10 @@ async function handlePopupMessage(
       }
 
       // Get paused state and auto-sending state
-      const storageResult = await chrome.storage.session.get(['isPaused', 'autoSendingIssueId', 'autoSendError']);
+      const storageResult = await chrome.storage.session.get(['isPaused', 'autoSendingIssueId', 'autoSendingConnectionType', 'autoSendError']);
       const isPaused = storageResult.isPaused === true;
       const autoSendingIssueId = storageResult.autoSendingIssueId as string | undefined;
+      const autoSendingConnectionType = storageResult.autoSendingConnectionType as 'opencode' | 'vscode' | undefined;
       const autoSendError = storageResult.autoSendError === true;
 
       return {
@@ -126,6 +130,7 @@ async function handlePopupMessage(
         errorCount,
         isPaused,
         autoSendingIssueId,
+        autoSendingConnectionType,
         autoSendError,
       } as StateResponse;
     }
@@ -416,14 +421,40 @@ async function handlePopupMessage(
       return { success: true } as ConnectionMutationResponse;
     }
 
+    case 'SET_ACTIVE_CONNECTION': {
+      // Get all connections and set the specified one as active, others as inactive
+      const allConnections = await storageManager.getConnections();
+      for (const conn of allConnections) {
+        const updated: Connection = {
+          ...conn,
+          isActive: conn.id === message.connectionId,
+          updatedAt: Date.now(),
+        };
+        await storageManager.updateConnection(updated);
+      }
+      return { success: true } as ConnectionMutationResponse;
+    }
+
     case 'TEST_CONNECTION': {
       const connection = await storageManager.getConnectionById(message.connectionId);
       if (!connection) {
         throw new Error('Connection not found');
       }
       try {
-        const health = await openCodeClient.checkHealth(connection.endpoint);
-        return { success: health.healthy, version: health.version } as TestConnectionResponse;
+        if (connection.type === 'opencode') {
+          const health = await openCodeClient.checkHealth(connection.endpoint);
+          return { success: health.healthy, version: health.version } as TestConnectionResponse;
+        } else if (connection.type === 'vscode') {
+          // For VSCode, use port scanning to find any available server
+          const availableEndpoint = await vsCodeClient.findAvailableServer();
+          if (!availableEndpoint) {
+            return { success: false, error: 'No VSCode servers found' } as TestConnectionResponse;
+          }
+          const health = await vsCodeClient.checkHealth(availableEndpoint);
+          return { success: health.healthy, version: health.version } as TestConnectionResponse;
+        } else {
+          throw new Error(`Unknown connection type: ${connection.type}`);
+        }
       } catch (error) {
         return {
           success: false,
@@ -477,6 +508,51 @@ async function handlePopupMessage(
           success: false,
           error: error instanceof Error ? error.message : 'Failed to send to OpenCode',
         } as SendToOpenCodeResponse;
+      }
+    }
+
+    case 'GET_VSCODE_INSTANCES': {
+      const connection = await storageManager.getConnectionById(message.connectionId);
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      try {
+        // Use discoverInstances to get only verified, live instances
+        const instances = await vsCodeClient.discoverInstances(connection.endpoint);
+        return { instances } as VSCodeInstancesResponse;
+      } catch (error) {
+        return {
+          instances: [],
+          error: error instanceof Error ? error.message : 'Failed to get instances',
+        } as VSCodeInstancesResponse;
+      }
+    }
+
+    case 'SEND_TO_VSCODE': {
+      const connection = await storageManager.getConnectionById(message.connectionId);
+      const monitoringSession = sessionStateMachine.getSession();
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      if (!monitoringSession) {
+        throw new Error('No active monitoring session');
+      }
+      if (!connection.selectedInstancePort) {
+        throw new Error('Instance port not set - please reselect the VSCode instance');
+      }
+
+      try {
+        const markdown = await markdownExporter.exportIssue(
+          monitoringSession.sessionId,
+          message.issueId
+        );
+        await vsCodeClient.sendMessage(message.instanceId, connection.selectedInstancePort, markdown);
+        return { success: true } as SendToVSCodeResponse;
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to send to VSCode',
+        } as SendToVSCodeResponse;
       }
     }
 
@@ -539,29 +615,36 @@ async function handleContentMessage(
       await sessionStateMachine.finishElementSelection();
 
       // Check if we should auto-send BEFORE opening popup
+      // Only use the active connection - no fallback
       let shouldAutoSend = false;
       let autoSendConnection: Connection | undefined;
+      let autoSendType: 'opencode' | 'vscode' | undefined;
 
       try {
         const connections = await storageManager.getConnections();
+
+        // Find the active connection
         autoSendConnection = connections.find(
-          (c) =>
-            c.type === 'opencode' &&
-            c.enabled &&
-            c.selectedSessionId &&
-            c.autoSend !== false // Default true
+          (c) => c.isActive && c.enabled && c.autoSend !== false
         );
 
-        if (autoSendConnection && autoSendConnection.selectedSessionId) {
-          // Check if session is idle before sending
-          const status = await openCodeClient.getSessionStatus(
-            autoSendConnection.endpoint,
-            autoSendConnection.selectedSessionId
-          );
-          shouldAutoSend = status.type === 'idle';
+        if (autoSendConnection) {
+          if (autoSendConnection.type === 'opencode' && autoSendConnection.selectedSessionId) {
+            // Check if session is idle before sending
+            const status = await openCodeClient.getSessionStatus(
+              autoSendConnection.endpoint,
+              autoSendConnection.selectedSessionId
+            );
+            shouldAutoSend = status.type === 'idle';
+            autoSendType = 'opencode';
 
-          if (!shouldAutoSend) {
-            console.log('[MessageRouter] OpenCode session busy, skipping auto-send');
+            if (!shouldAutoSend) {
+              console.log('[MessageRouter] OpenCode session busy, skipping auto-send');
+            }
+          } else if (autoSendConnection.type === 'vscode' && autoSendConnection.selectedInstanceId) {
+            // VSCode doesn't have a busy/idle status, so we just send directly
+            shouldAutoSend = true;
+            autoSendType = 'vscode';
           }
         }
       } catch (e) {
@@ -569,8 +652,11 @@ async function handleContentMessage(
       }
 
       // Set auto-sending state BEFORE opening popup so it shows loading immediately
-      if (shouldAutoSend) {
-        await chrome.storage.session.set({ autoSendingIssueId: issue.id });
+      if (shouldAutoSend && autoSendType) {
+        await chrome.storage.session.set({
+          autoSendingIssueId: issue.id,
+          autoSendingConnectionType: autoSendType,
+        });
       }
 
       // Open the extension popup
@@ -581,27 +667,38 @@ async function handleContentMessage(
       }
 
       // Now do the actual auto-send
-      if (shouldAutoSend && autoSendConnection && autoSendConnection.selectedSessionId) {
+      if (shouldAutoSend && autoSendConnection) {
         try {
           const markdown = await markdownExporter.exportIssue(
             session.sessionId,
             issue.id
           );
-          await openCodeClient.sendMessage(
-            autoSendConnection.endpoint,
-            autoSendConnection.selectedSessionId,
-            markdown
-          );
+
+          if (autoSendType === 'opencode' && autoSendConnection.selectedSessionId) {
+            await openCodeClient.sendMessage(
+              autoSendConnection.endpoint,
+              autoSendConnection.selectedSessionId,
+              markdown
+            );
+            console.log('[MessageRouter] Auto-sent issue to OpenCode');
+          } else if (autoSendType === 'vscode' && autoSendConnection.selectedInstanceId && autoSendConnection.selectedInstancePort) {
+            await vsCodeClient.sendMessage(
+              autoSendConnection.selectedInstanceId,
+              autoSendConnection.selectedInstancePort,
+              markdown
+            );
+            console.log('[MessageRouter] Auto-sent issue to VSCode');
+          }
+
           // Mark as exported
           await storageManager.markIssueExported(issue.id);
-          console.log('[MessageRouter] Auto-sent issue to OpenCode');
           // Clear auto-sending state on success
-          await chrome.storage.session.remove('autoSendingIssueId');
+          await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
         } catch (e) {
           console.warn('[MessageRouter] Auto-send failed:', e);
           // Set error flag and clear sending state
           await chrome.storage.session.set({ autoSendError: true });
-          await chrome.storage.session.remove('autoSendingIssueId');
+          await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
         }
       }
 
@@ -632,7 +729,7 @@ export function initMessageRouter(): void {
     const isFromPopup = !sender.tab;
     const isFromContent = !!sender.tab;
 
-    let handlePromise: Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | boolean>;
+    let handlePromise: Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | VSCodeInstancesResponse | SendToVSCodeResponse | boolean>;
 
     if (isFromPopup) {
       handlePromise = handlePopupMessage(
