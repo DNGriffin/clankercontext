@@ -4,17 +4,16 @@
  * Runs in the context of web pages to:
  * - Handle element picker for issue capture
  * - Capture element HTML and selector
- * - Support multi-select with CTRL+click
+ * - Support multi-select with Ctrl+click (Windows/Linux) or Cmd+click (macOS)
  */
 
 import type { BackgroundToContentMessage } from '@/shared/messages';
-import type { CapturedElement, IssueType } from '@/shared/types';
+import type { CapturedElement } from '@/shared/types';
 import { getBestSelector } from './SelectorGenerator';
 import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
 
 // State
 let elementPickerActive = false;
-let currentIssueType: IssueType | null = null;
 let highlightElement: HTMLDivElement | null = null;
 let overlayElement: HTMLDivElement | null = null;
 let tooltipElement: HTMLDivElement | null = null;
@@ -43,7 +42,6 @@ function handleMessage(
 
   switch (message.type) {
     case 'START_ELEMENT_PICKER':
-      currentIssueType = message.issueType;
       startElementPicker();
       sendResponse({ success: true });
       break;
@@ -62,20 +60,28 @@ function handleMessage(
 }
 
 /**
+ * Get the modifier key name for the current platform.
+ * Returns "Cmd" for macOS, "Ctrl" for Windows/Linux.
+ */
+function getModifierKeyName(): string {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  return isMac ? 'Cmd' : 'Ctrl';
+}
+
+/**
  * Update the tooltip text based on current selection state.
  */
 function updateTooltip(): void {
   if (!tooltipElement) return;
 
+  const modKey = getModifierKeyName();
   const count = selectedElements.length;
   let text: string;
 
   if (count === 0) {
-    text = currentIssueType === 'enhancement'
-      ? 'Click to select element. Hold Ctrl+click to select multiple. Press Esc to cancel.'
-      : 'Click to select element. Hold Ctrl+click to select multiple. Press Esc to cancel.';
+    text = `Click to select element. Hold ${modKey}+click to select multiple. Press Esc to cancel.`;
   } else {
-    text = `${count} element${count > 1 ? 's' : ''} selected. Ctrl+click to add more, click to add and finish, or press Enter to finish.`;
+    text = `${count} element${count > 1 ? 's' : ''} selected. ${modKey}+click to add more, click to add and finish, or press Enter to finish.`;
   }
 
   tooltipElement.textContent = text;
@@ -170,7 +176,6 @@ function finishSelection(): void {
  */
 function cleanupPicker(): void {
   elementPickerActive = false;
-  currentIssueType = null;
 
   // Remove main picker elements
   document.getElementById('clankercontext-overlay')?.remove();
