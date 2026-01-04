@@ -2,6 +2,12 @@
 
 A Chrome Extension that generates LLM-optimized context for AI coding tools. Capture frontend bugs and enhancement requests with one click, then export everything your AI assistant needs to understand and fix the issue.
 
+## Demo
+
+https://github.com/user-attachments/assets/09bc2d72-d809-4081-afe5-f01bb1872dab
+
+
+
 ## Features
 
 - **Element Capture** - Point and click to capture any element's HTML
