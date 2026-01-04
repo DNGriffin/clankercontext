@@ -88,7 +88,7 @@ export function SessionPicker({
             Failed to fetch sessions.
           </p>
           <p className="text-xs text-muted-foreground">
-            Ensure that OpenCode is running.
+            Ensure that OpenCode is running on {connection.endpoint}
           </p>
           <Button variant="outline" size="sm" onClick={fetchSessions}>
             Retry

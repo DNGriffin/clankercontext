@@ -421,6 +421,12 @@ export function Popup(): React.ReactElement {
           }
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !state.loading && prompt.trim()) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
           autoFocus
         />
 
