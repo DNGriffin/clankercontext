@@ -279,8 +279,10 @@ function startElementPicker(): void {
   document.body.appendChild(tooltipElement);
 
   // Add event listeners
+  // Use mousedown instead of click to capture element immediately,
+  // before any page shift can occur between mousedown and mouseup
   overlayElement.addEventListener('mousemove', handlePickerMouseMove);
-  overlayElement.addEventListener('click', handlePickerClick);
+  overlayElement.addEventListener('mousedown', handlePickerClick);
   document.addEventListener('keydown', handlePickerKeyDown);
 
   console.log('[ClankerContext] Element picker started');
