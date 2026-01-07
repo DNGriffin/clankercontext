@@ -13,14 +13,42 @@ type CDPParams = Record<string, unknown>;
  */
 class CDPController {
   private attachedTabId: number | null = null;
+  private operationInProgress: Promise<void> | null = null;
+  private onDetachCallback: ((reason: string) => void) | null = null;
+
+  /**
+   * Set a callback to be notified when the debugger is detached externally
+   * (e.g., user clicks "Cancel" on the Chrome debugging banner).
+   */
+  setOnDetachCallback(callback: (reason: string) => void): void {
+    this.onDetachCallback = callback;
+  }
 
   /**
    * Attach the debugger to a tab.
+   * Uses a mutex to prevent concurrent attach/detach operations.
    */
   async attach(tabId: number): Promise<void> {
-    // Clean up our internal state first
+    // Wait for any pending operation to complete
+    if (this.operationInProgress) {
+      await this.operationInProgress;
+    }
+
+    this.operationInProgress = this.doAttach(tabId);
+    try {
+      await this.operationInProgress;
+    } finally {
+      this.operationInProgress = null;
+    }
+  }
+
+  /**
+   * Internal attach implementation.
+   */
+  private async doAttach(tabId: number): Promise<void> {
+    // Clean up our internal state first (use doDetach to avoid mutex recursion)
     if (this.attachedTabId !== null) {
-      await this.detach();
+      await this.doDetach();
     }
 
     console.log('[CDP] Attaching to tab:', tabId);
@@ -72,13 +100,32 @@ class CDPController {
 
   /**
    * Detach the debugger from the current tab.
+   * Uses a mutex to prevent concurrent attach/detach operations.
    */
   async detach(): Promise<void> {
+    // Wait for any pending operation to complete
+    if (this.operationInProgress) {
+      await this.operationInProgress;
+    }
+
+    this.operationInProgress = this.doDetach();
+    try {
+      await this.operationInProgress;
+    } finally {
+      this.operationInProgress = null;
+    }
+  }
+
+  /**
+   * Internal detach implementation.
+   */
+  private async doDetach(): Promise<void> {
     if (this.attachedTabId === null) return;
 
     try {
-      // Remove event listener
+      // Remove event listeners
       chrome.debugger.onEvent.removeListener(this.handleDebuggerEvent);
+      chrome.debugger.onDetach.removeListener(this.handleDebuggerDetach);
 
       // Disable domains before detaching
       await this.sendCommand('Network.disable', {});
@@ -114,11 +161,38 @@ class CDPController {
 
   /**
    * Set up CDP event listeners.
+   * Note: handleDebuggerEvent and handleDebuggerDetach are arrow functions,
+   * so they already have correct `this` binding.
+   * We use the same reference for add/remove to avoid memory leaks.
    */
   private setupEventListeners(): void {
-    this.handleDebuggerEvent = this.handleDebuggerEvent.bind(this);
     chrome.debugger.onEvent.addListener(this.handleDebuggerEvent);
+    chrome.debugger.onDetach.addListener(this.handleDebuggerDetach);
   }
+
+  /**
+   * Handle external debugger detachment.
+   * This fires when user clicks "Cancel" on the debugging banner,
+   * when the tab is closed, or when DevTools takes over.
+   */
+  private handleDebuggerDetach = (
+    source: chrome.debugger.Debuggee,
+    reason: string
+  ): void => {
+    if (source.tabId !== this.attachedTabId) return;
+
+    console.log('[CDP] Debugger detached externally, reason:', reason);
+
+    // Clean up internal state
+    this.attachedTabId = null;
+    chrome.debugger.onEvent.removeListener(this.handleDebuggerEvent);
+    chrome.debugger.onDetach.removeListener(this.handleDebuggerDetach);
+
+    // Notify callback
+    if (this.onDetachCallback) {
+      this.onDetachCallback(reason);
+    }
+  };
 
   /**
    * Handle incoming debugger events.
@@ -207,6 +281,16 @@ class CDPController {
   }
 
   /**
+   * Check if an error originates from a Chrome extension.
+   */
+  private isExtensionError(error: ConsoleError): boolean {
+    const extensionPattern = /chrome-extension:\/\//;
+    if (error.url && extensionPattern.test(error.url)) return true;
+    if (error.stackTrace && extensionPattern.test(error.stackTrace)) return true;
+    return false;
+  }
+
+  /**
    * Handle Console.messageAdded event.
    * Only stores error-level messages.
    */
@@ -232,6 +316,11 @@ class CDPController {
       url: message.url,
       lineNumber: message.line,
     };
+
+    // Skip errors originating from Chrome extensions
+    if (this.isExtensionError(consoleError)) {
+      return;
+    }
 
     storageManager
       .addConsoleError(session.sessionId, consoleError)
@@ -266,6 +355,11 @@ class CDPController {
       url: exceptionDetails.url,
       lineNumber: exceptionDetails.lineNumber,
     };
+
+    // Skip errors originating from Chrome extensions
+    if (this.isExtensionError(consoleError)) {
+      return;
+    }
 
     storageManager
       .addConsoleError(session.sessionId, consoleError)

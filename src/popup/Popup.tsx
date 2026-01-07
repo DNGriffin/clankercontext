@@ -331,12 +331,18 @@ export function Popup(): React.ReactElement {
       }
       await fetchState();
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Cannot listen to this page';
       setState((prev) => ({
         ...prev,
         loading: false,
         error: null,
       }));
-      setToast('Cannot listen to this page');
+      // Show friendly message for known restrictions, otherwise show actual error
+      setToast(
+        message.includes('Cannot attach') || message.includes('restricted')
+          ? 'Cannot listen to this page'
+          : message
+      );
     }
   }, [fetchState]);
 

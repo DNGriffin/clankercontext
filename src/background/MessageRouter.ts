@@ -152,6 +152,11 @@ async function handlePopupMessage(
         throw new Error('Cannot attach debugger to this page');
       }
 
+      // Check if tab is still loading
+      if (tab.status !== 'complete') {
+        throw new Error('Page is still loading, please wait');
+      }
+
       // Start monitoring
       await sessionStateMachine.startMonitoring(tab.id);
 

@@ -14,6 +14,18 @@ import { initMessageRouter, clearInjectionTracking } from './MessageRouter';
 import { cdpController } from './CDPController';
 import { iconController } from './IconController';
 
+/**
+ * Check if a URL is a restricted Chrome page that CDP cannot attach to.
+ */
+function isRestrictedUrl(url: string | undefined): boolean {
+  if (!url) return true;
+  return (
+    url.startsWith('chrome://') ||
+    url.startsWith('chrome-extension://') ||
+    url.startsWith('devtools://')
+  );
+}
+
 // Promise that resolves when initialization is complete
 // Used by message handlers to wait for session rehydration
 let initResolve: () => void;
@@ -43,11 +55,21 @@ async function init(): Promise<void> {
     // If we have an active session and not paused, try to re-attach CDP
     if (session && sessionStateMachine.isMonitoring() && !isPaused) {
       try {
-        await cdpController.attach(session.tabId);
-        console.log('[ClankerContext] CDP re-attached to tab:', session.tabId);
+        // Verify tab still exists and isn't a restricted page
+        const tab = await chrome.tabs.get(session.tabId);
+        if (!tab || isRestrictedUrl(tab.url)) {
+          console.warn('[ClankerContext] Stale or restricted tab, resetting session');
+          await sessionStateMachine.forceReset(true);
+          await iconController.showSleepIcon();
+        } else {
+          await cdpController.attach(session.tabId);
+          console.log('[ClankerContext] CDP re-attached to tab:', session.tabId);
+        }
       } catch (e) {
-        console.warn('[ClankerContext] Failed to re-attach CDP:', e);
-        // Session is still valid, just without CDP monitoring
+        console.warn('[ClankerContext] Tab no longer exists or failed to attach:', e);
+        // Tab doesn't exist anymore, reset the session
+        await sessionStateMachine.forceReset(true);
+        await iconController.showSleepIcon();
       }
     } else if (isPaused) {
       console.log('[ClankerContext] Session is paused, not attaching CDP');
@@ -59,6 +81,15 @@ async function init(): Promise<void> {
 
   // Initialize message routing
   initMessageRouter();
+
+  // Handle external debugger detachment (e.g., user clicks "Cancel" on debugging banner)
+  cdpController.setOnDetachCallback(async (reason: string) => {
+    console.log('[ClankerContext] CDP detached externally:', reason);
+
+    // Pause listening on external detach
+    await chrome.storage.session.set({ isPaused: true });
+    await iconController.showSleepIcon();
+  });
 
   // Subscribe to session events for logging
   sessionStateMachine.subscribe((event) => {
@@ -115,6 +146,13 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
     // Clear content script injection tracking for new tab
     clearInjectionTracking(activeInfo.tabId);
+
+    // Check if new tab is a restricted page before attaching CDP
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (isRestrictedUrl(tab.url)) {
+      console.log('[ClankerContext] Skipping CDP attach for restricted page:', tab.url);
+      return;
+    }
 
     // Attach CDP to new tab
     await cdpController.attach(activeInfo.tabId);
