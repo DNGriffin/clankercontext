@@ -386,14 +386,14 @@ export function Popup(): React.ReactElement {
 
   // Settings view
   if (view === 'settings') {
-    return <SettingsView onBack={() => setView('main')} />;
+    return <SettingsView key="settings" onBack={() => setView('main')} />;
   }
 
   // Form view (compact)
   if (view !== 'main') {
     const isEnhancement = view === 'enhancement';
     return (
-      <div className="flex flex-col h-full p-4">
+      <div key={`form-${view}`} className="flex flex-col h-full p-4">
         <div className="flex items-center gap-2 mb-4">
           <Button
             variant="ghost"
@@ -464,7 +464,7 @@ export function Popup(): React.ReactElement {
 
   // Main view (compact)
   return (
-    <div className="flex flex-col p-3">
+    <div key="main" className="flex flex-col p-3">
       {/* Compact Header */}
       <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
