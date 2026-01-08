@@ -1,4 +1,4 @@
-import { IDB_CONFIG } from '@/shared/constants';
+import { IDB_CONFIG, DEFAULT_CONNECTIONS } from '@/shared/constants';
 import type {
   Connection,
   ConsoleError,
@@ -381,6 +381,54 @@ class StorageManager {
 
   async deleteConnection(connectionId: string): Promise<void> {
     return this.delete(IDB_CONFIG.STORES.CONNECTIONS, connectionId);
+  }
+
+  /**
+   * Initialize default connections if this is the first run.
+   * Uses chrome.storage.local to persist the "initialized" flag across service worker restarts.
+   * Returns true if defaults were created, false if they already existed.
+   */
+  async initializeDefaultConnections(): Promise<boolean> {
+    const { defaultConnectionsInitialized } = await chrome.storage.local.get(
+      'defaultConnectionsInitialized'
+    );
+
+    if (defaultConnectionsInitialized) {
+      return false;
+    }
+
+    const now = Date.now();
+
+    const openCodeConnection: Connection = {
+      id: DEFAULT_CONNECTIONS.opencode.id,
+      name: DEFAULT_CONNECTIONS.opencode.name,
+      type: DEFAULT_CONNECTIONS.opencode.type,
+      endpoint: DEFAULT_CONNECTIONS.opencode.endpoint,
+      enabled: DEFAULT_CONNECTIONS.opencode.enabled,
+      autoSend: DEFAULT_CONNECTIONS.opencode.autoSend,
+      isActive: DEFAULT_CONNECTIONS.opencode.isActive,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const vsCodeConnection: Connection = {
+      id: DEFAULT_CONNECTIONS.vscode.id,
+      name: DEFAULT_CONNECTIONS.vscode.name,
+      type: DEFAULT_CONNECTIONS.vscode.type,
+      endpoint: DEFAULT_CONNECTIONS.vscode.endpoint,
+      enabled: DEFAULT_CONNECTIONS.vscode.enabled,
+      autoSend: DEFAULT_CONNECTIONS.vscode.autoSend,
+      isActive: DEFAULT_CONNECTIONS.vscode.isActive,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await this.addConnection(openCodeConnection);
+    await this.addConnection(vsCodeConnection);
+    await chrome.storage.local.set({ defaultConnectionsInitialized: true });
+
+    console.log('[StorageManager] Default connections initialized');
+    return true;
   }
 }
 

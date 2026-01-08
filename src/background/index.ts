@@ -42,6 +42,9 @@ async function init(): Promise<void> {
   // Initialize storage
   await storageManager.init();
 
+  // Initialize default connections (idempotent - skips if already done)
+  await storageManager.initializeDefaultConnections();
+
   // Try to rehydrate session state from storage (for service worker restart)
   const rehydrated = await sessionStateMachine.rehydrate();
   if (rehydrated) {
@@ -108,8 +111,14 @@ init().catch((error) => {
 });
 
 // Handle extension installation
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[ClankerContext] Extension installed:', details.reason);
+
+  if (details.reason === 'install') {
+    // First installation - ensure default connections are created
+    await storageManager.init();
+    await storageManager.initializeDefaultConnections();
+  }
 });
 
 // Handle tab switching - move session to new tab

@@ -25,6 +25,28 @@ export const CONNECTION_TYPES = {
   },
 } as const;
 
+// Default connections that come pre-installed
+export const DEFAULT_CONNECTIONS = {
+  opencode: {
+    id: 'default_opencode',
+    name: 'Default - OpenCode',
+    type: 'opencode' as const,
+    endpoint: CONNECTION_TYPES.opencode.defaultEndpoint,
+    enabled: true,
+    autoSend: true,
+    isActive: true,
+  },
+  vscode: {
+    id: 'default_vscode',
+    name: 'Default - VSCode',
+    type: 'vscode' as const,
+    endpoint: CONNECTION_TYPES.vscode.defaultEndpoint,
+    enabled: true,
+    autoSend: false,
+    isActive: false,
+  },
+} as const;
+
 // DOM capture configuration
 export const DOM_CAPTURE_CONFIG = {
   MAX_OUTER_HTML_LENGTH: 10000,
