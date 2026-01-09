@@ -3,8 +3,10 @@ import type {
   Connection,
   ConsoleError,
   Issue,
+  IssueType,
   MonitoringSession,
   NetworkError,
+  PromptTemplate,
 } from '@/shared/types';
 
 /**
@@ -96,6 +98,13 @@ class StorageManager {
       });
       store.createIndex('type', 'type', { unique: false });
       store.createIndex('enabled', 'enabled', { unique: false });
+    }
+
+    // Prompt templates store (added in version 5)
+    if (!db.objectStoreNames.contains(IDB_CONFIG.STORES.PROMPT_TEMPLATES)) {
+      db.createObjectStore(IDB_CONFIG.STORES.PROMPT_TEMPLATES, {
+        keyPath: 'type',
+      });
     }
   }
 
@@ -381,6 +390,41 @@ class StorageManager {
 
   async deleteConnection(connectionId: string): Promise<void> {
     return this.delete(IDB_CONFIG.STORES.CONNECTIONS, connectionId);
+  }
+
+  // Prompt template operations
+  async getPromptTemplates(): Promise<PromptTemplate[]> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.PROMPT_TEMPLATES, 'readonly');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.PROMPT_TEMPLATES);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result as PromptTemplate[]);
+      request.onerror = () =>
+        reject(new Error(`Failed to get prompt templates: ${request.error?.message}`));
+    });
+  }
+
+  async getPromptTemplate(type: IssueType): Promise<PromptTemplate | null> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.PROMPT_TEMPLATES, 'readonly');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.PROMPT_TEMPLATES);
+      const request = store.get(type);
+
+      request.onsuccess = () => resolve((request.result as PromptTemplate) || null);
+      request.onerror = () =>
+        reject(new Error(`Failed to get prompt template: ${request.error?.message}`));
+    });
+  }
+
+  async upsertPromptTemplate(template: PromptTemplate): Promise<IDBValidKey> {
+    return this.put(IDB_CONFIG.STORES.PROMPT_TEMPLATES, template);
+  }
+
+  async deletePromptTemplate(type: IssueType): Promise<void> {
+    return this.delete(IDB_CONFIG.STORES.PROMPT_TEMPLATES, type);
   }
 
   /**

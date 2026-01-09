@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Loader2, AlertCircle } from 'lucide-react';
-import type { Connection, OpenCodeSession, VSCodeInstance } from '@/shared/types';
+import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import type { Connection, IssueType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
 import type { ConnectionsResponse, ConnectionMutationResponse, TestConnectionResponse } from '@/shared/messages';
+import { storageManager } from '@/background/StorageManager';
+import { PROMPT_TEMPLATE_LABELS } from '@/prompts/templates';
 import { ConnectionItem } from './components/ConnectionItem';
 import { ConnectionForm } from './components/ConnectionForm';
 import { SessionPicker } from './components/SessionPicker';
@@ -10,9 +12,19 @@ import { InstancePicker } from './components/InstancePicker';
 
 interface SettingsViewProps {
   onBack: () => void;
+  onEditPrompt: (type: IssueType) => void;
 }
 
-export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement {
+interface PromptTemplateState {
+  type: IssueType;
+  label: string;
+  isCustom: boolean;
+  updatedAt?: number;
+}
+
+const PROMPT_TEMPLATE_ORDER: IssueType[] = ['fix', 'enhancement'];
+
+export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React.ReactElement {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +32,10 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
     null
   );
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplateState[]>([]);
+  const [promptTemplatesLoading, setPromptTemplatesLoading] = useState(true);
+  const [connectionsOpen, setConnectionsOpen] = useState(true);
+  const [promptsOpen, setPromptsOpen] = useState(true);
 
   // Session picker state (for OpenCode)
   const [sessionPickerConnection, setSessionPickerConnection] = useState<Connection | null>(null);
@@ -53,6 +69,29 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
     );
   }, []);
 
+  const fetchPromptTemplates = useCallback(async () => {
+    try {
+      setPromptTemplatesLoading(true);
+      const storedTemplates = await Promise.all(
+        PROMPT_TEMPLATE_ORDER.map((type) => storageManager.getPromptTemplate(type))
+      );
+      const nextTemplates = storedTemplates.map((stored, index) => {
+        const type = PROMPT_TEMPLATE_ORDER[index];
+        return {
+          type,
+          label: PROMPT_TEMPLATE_LABELS[type],
+          isCustom: Boolean(stored),
+          updatedAt: stored?.updatedAt,
+        } as PromptTemplateState;
+      });
+      setPromptTemplates(nextTemplates);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load prompt templates');
+    } finally {
+      setPromptTemplatesLoading(false);
+    }
+  }, []);
+
   const fetchConnections = useCallback(async () => {
     try {
       setLoading(true);
@@ -72,7 +111,8 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
 
   useEffect(() => {
     fetchConnections();
-  }, [fetchConnections]);
+    fetchPromptTemplates();
+  }, [fetchConnections, fetchPromptTemplates]);
 
   const handleToggle = useCallback(
     async (id: string, enabled: boolean) => {
@@ -292,52 +332,121 @@ export function SettingsView({ onBack }: SettingsViewProps): React.ReactElement 
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Connections
           </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setConnectionsOpen((prev) => !prev)}
+              title={connectionsOpen ? 'Collapse connections' : 'Expand connections'}
+              aria-label={connectionsOpen ? 'Collapse connections' : 'Expand connections'}
+            >
+              {connectionsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setIsAddingNew(true)}
+              title="Add connection"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        {connectionsOpen ? (
+          loading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : connections.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                No connections configured
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddingNew(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add connection
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col border rounded-md divide-y">
+              {connections.map((conn) => (
+                <ConnectionItem
+                  key={conn.id}
+                  connection={conn}
+                  healthStatus={connectionHealth[conn.id]}
+                  onEdit={() => setEditingConnection(conn)}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                  onSelectSession={setSessionPickerConnection}
+                  onSelectInstance={setInstancePickerConnection}
+                  onSetActive={handleSetActive}
+                />
+              ))}
+            </div>
+          )
+        ) : null}
+      </section>
+
+      <section className="mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Prompts
+          </span>
           <Button
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0"
-            onClick={() => setIsAddingNew(true)}
-            title="Add connection"
+            onClick={() => setPromptsOpen((prev) => !prev)}
+            title={promptsOpen ? 'Collapse prompts' : 'Expand prompts'}
+            aria-label={promptsOpen ? 'Collapse prompts' : 'Expand prompts'}
           >
-            <Plus className="h-3 w-3" />
+            {promptsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </Button>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : connections.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              No connections configured
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAddingNew(true)}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add connection
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col border rounded-md divide-y">
-            {connections.map((conn) => (
-              <ConnectionItem
-                key={conn.id}
-                connection={conn}
-                healthStatus={connectionHealth[conn.id]}
-                onEdit={() => setEditingConnection(conn)}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onSelectSession={setSessionPickerConnection}
-                onSelectInstance={setInstancePickerConnection}
-                onSetActive={handleSetActive}
-              />
-            ))}
-          </div>
-        )}
+        {promptsOpen ? (
+          promptTemplatesLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {promptTemplates.map((template) => {
+                const lastUpdated = template.updatedAt
+                  ? new Date(template.updatedAt).toLocaleString()
+                  : null;
+                const status = template.isCustom
+                  ? `Custom${lastUpdated ? ` - Updated ${lastUpdated}` : ''}`
+                  : 'Default';
+                return (
+                  <div
+                    key={template.type}
+                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{template.label} prompt</span>
+                      <span className="text-[11px] text-muted-foreground">{status}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEditPrompt(template.type)}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : null}
       </section>
 
     </div>

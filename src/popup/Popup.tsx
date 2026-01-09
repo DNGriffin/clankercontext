@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { Issue, MonitoringSession } from '@/shared/types';
+import type { Issue, IssueType, MonitoringSession } from '@/shared/types';
 import type { ConnectionsResponse, ExportResponse, SendToOpenCodeResponse, SendToVSCodeResponse, StateResponse } from '@/shared/messages';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,7 @@ import {
   CheckCheck,
 } from 'lucide-react';
 import { SettingsView } from './SettingsView';
+import { PromptEditView } from './PromptEditView';
 
 interface PopupState {
   loading: boolean;
@@ -32,7 +33,7 @@ interface PopupState {
   autoSendError?: boolean;
 }
 
-type ViewState = 'main' | 'enhancement' | 'fix' | 'settings';
+type ViewState = 'main' | 'enhancement' | 'fix' | 'settings' | 'prompt-edit';
 
 export function Popup(): React.ReactElement {
   const [state, setState] = useState<PopupState>({
@@ -45,6 +46,7 @@ export function Popup(): React.ReactElement {
 
   const [view, setView] = useState<ViewState>('main');
   const [prompt, setPrompt] = useState('');
+  const [editingPromptType, setEditingPromptType] = useState<IssueType>('fix');
   const [actionSuccess, setActionSuccess] = useState<{ id: string; type: 'copy' | 'download' | 'send' | 'sent' } | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
@@ -386,7 +388,26 @@ export function Popup(): React.ReactElement {
 
   // Settings view
   if (view === 'settings') {
-    return <SettingsView key="settings" onBack={() => setView('main')} />;
+    return (
+      <SettingsView
+        key="settings"
+        onBack={() => setView('main')}
+        onEditPrompt={(type) => {
+          setEditingPromptType(type);
+          setView('prompt-edit');
+        }}
+      />
+    );
+  }
+
+  if (view === 'prompt-edit') {
+    return (
+      <PromptEditView
+        key={`prompt-${editingPromptType}`}
+        type={editingPromptType}
+        onBack={() => setView('settings')}
+      />
+    );
   }
 
   // Form view (compact)

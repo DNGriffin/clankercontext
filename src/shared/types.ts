@@ -4,6 +4,13 @@ export type SessionState = 'idle' | 'monitoring' | 'selecting_element';
 // Issue Types
 export type IssueType = 'enhancement' | 'fix';
 
+// Prompt template stored in IndexedDB
+export interface PromptTemplate {
+  type: IssueType;
+  content: string;
+  updatedAt: number;
+}
+
 // Captured element data
 export interface CapturedElement {
   html: string;      // outerHTML of the element
