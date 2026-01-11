@@ -27,6 +27,12 @@ export interface OpenCodeSessionStatus {
   type: 'idle' | 'busy' | 'retry';
 }
 
+export interface OpenCodeProjectInfo {
+  id: string;
+  worktree: string;  // The project directory path
+  name?: string;
+}
+
 class OpenCodeClient {
   /**
    * Check if an OpenCode server is healthy and running.
@@ -48,10 +54,15 @@ class OpenCodeClient {
   }
 
   /**
-   * Get all active sessions from an OpenCode server.
+   * Get sessions from an OpenCode server.
+   * @param endpoint - The OpenCode server endpoint
+   * @param directory - Optional directory path to set the project context
    */
-  async getSessions(endpoint: string): Promise<OpenCodeSessionInfo[]> {
-    const url = `${endpoint}/session`;
+  async getSessions(endpoint: string, directory?: string): Promise<OpenCodeSessionInfo[]> {
+    let url = `${endpoint}/session`;
+    if (directory) {
+      url = `${url}?directory=${encodeURIComponent(directory)}`;
+    }
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -64,6 +75,52 @@ class OpenCodeClient {
     }
 
     return response.json();
+  }
+
+  /**
+   * Get all sessions across all known projects.
+   * Fetches projects first, then gets sessions for each project via /session?directory=.
+   * Falls back to plain /session if /project fails or returns empty (for older OpenCode versions).
+   */
+  async getAllSessions(endpoint: string): Promise<{ sessions: OpenCodeSessionInfo[]; projects: OpenCodeProjectInfo[] }> {
+    // Try to get all known projects (may fail on older OpenCode versions)
+    let projects: OpenCodeProjectInfo[] = [];
+    try {
+      projects = await this.getProjects(endpoint);
+    } catch {
+      // /project endpoint not available, fall back to plain /session
+    }
+
+    // If no projects found, fall back to plain /session call
+    if (projects.length === 0) {
+      const sessions = await this.getSessions(endpoint);
+      return { sessions, projects: [] };
+    }
+
+    // Fetch sessions from each project directory in parallel
+    const sessionPromises = projects.map(async (project) => {
+      try {
+        return await this.getSessions(endpoint, project.worktree);
+      } catch {
+        // If fetching sessions for a specific project fails, return empty array
+        return [];
+      }
+    });
+
+    const sessionsPerProject = await Promise.all(sessionPromises);
+
+    // Flatten and deduplicate sessions (in case same session appears in multiple queries)
+    const sessionMap = new Map<string, OpenCodeSessionInfo>();
+    for (const projectSessions of sessionsPerProject) {
+      for (const session of projectSessions) {
+        sessionMap.set(session.id, session);
+      }
+    }
+
+    return {
+      sessions: Array.from(sessionMap.values()),
+      projects,
+    };
   }
 
   /**
@@ -115,6 +172,26 @@ class OpenCodeClient {
     // If session not in map, it defaults to idle (OpenCode behavior)
     return statuses[sessionId] ?? { type: 'idle' };
   }
+
+  /**
+   * Get all known projects from an OpenCode server.
+   */
+  async getProjects(endpoint: string): Promise<OpenCodeProjectInfo[]> {
+    const url = `${endpoint}/project`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get projects: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
 }
 
 // Export singleton instance

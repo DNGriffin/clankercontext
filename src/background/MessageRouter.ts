@@ -474,14 +474,30 @@ async function handlePopupMessage(
         throw new Error('Connection not found');
       }
       try {
-        const sessionsRaw = await openCodeClient.getSessions(connection.endpoint);
-        // Transform to our simplified OpenCodeSession interface
-        const sessions = sessionsRaw.map((s) => ({
-          id: s.id,
-          title: s.title || 'Untitled Session',
-          directory: s.directory,
-          updatedAt: s.time.updated,
-        }));
+        // Fetch all sessions across all projects
+        const { sessions: sessionsRaw, projects } = await openCodeClient.getAllSessions(
+          connection.endpoint
+        );
+
+        // Build project map for enrichment
+        const projectMap = new Map(projects.map((p) => [p.id, p]));
+
+        // Transform to our simplified OpenCodeSession interface with project info
+        const sessions = sessionsRaw.map((s) => {
+          const project = projectMap.get(s.projectID);
+          return {
+            id: s.id,
+            title: s.title || 'Untitled Session',
+            directory: s.directory,
+            updatedAt: s.time.updated,
+            projectId: s.projectID,
+            projectPath: project?.worktree || s.directory,
+          };
+        });
+
+        // Sort by most recently updated
+        sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+
         return { sessions } as OpenCodeSessionsResponse;
       } catch (error) {
         return {

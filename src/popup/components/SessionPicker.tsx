@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import type { Connection, OpenCodeSession } from '@/shared/types';
@@ -57,6 +57,22 @@ export function SessionPicker({
     fetchSessions();
   }, [fetchSessions]);
 
+  // Group sessions by project path for better organization
+  const groupedSessions = useMemo(() => {
+    const groups = new Map<string, OpenCodeSession[]>();
+    for (const session of sessions) {
+      const key = session.projectPath || session.directory;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(session);
+    }
+    return groups;
+  }, [sessions]);
+
+  // Check if we have multiple projects (to decide if we need grouping headers)
+  const hasMultipleProjects = groupedSessions.size > 1;
+
   return (
     <div className="flex flex-col p-3 min-h-[400px]">
       <div className="flex items-center gap-2 mb-4">
@@ -108,20 +124,33 @@ export function SessionPicker({
         </div>
       ) : (
         <div className="flex flex-col flex-1">
-          <div className="flex flex-col border rounded-md divide-y flex-1 overflow-y-auto">
-            {sessions.map((session) => (
-              <button
-                key={session.id}
-                className="flex flex-col px-3 py-2 text-left hover:bg-muted/50 transition-colors"
-                onClick={() => onSelect(session)}
-              >
-                <span className="text-sm font-medium truncate">
-                  {session.title || 'Untitled Session'}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {session.directory} &bull; {formatTimeAgo(session.updatedAt)}
-                </span>
-              </button>
+          <div className="flex flex-col border rounded-md flex-1 overflow-y-auto">
+            {Array.from(groupedSessions.entries()).map(([projectPath, projectSessions], groupIndex) => (
+              <div key={projectPath} className="flex flex-col">
+                {hasMultipleProjects && (
+                  <div className="px-3 py-1.5 bg-muted/30 text-xs font-medium text-muted-foreground truncate border-b">
+                    {projectPath}
+                  </div>
+                )}
+                {projectSessions.map((session, sessionIndex) => (
+                  <button
+                    key={session.id}
+                    className={`flex flex-col px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
+                      sessionIndex < projectSessions.length - 1 || groupIndex < groupedSessions.size - 1
+                        ? 'border-b'
+                        : ''
+                    }`}
+                    onClick={() => onSelect(session)}
+                  >
+                    <span className="text-sm font-medium truncate">
+                      {session.title || 'Untitled Session'}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {hasMultipleProjects ? formatTimeAgo(session.updatedAt) : `${session.directory} \u2022 ${formatTimeAgo(session.updatedAt)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
           <p className="text-xs text-muted-foreground text-center mt-3">

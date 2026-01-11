@@ -87,6 +87,8 @@ export interface OpenCodeSession {
   title: string;
   directory: string;
   updatedAt: number;
+  projectId?: string;    // Link to project
+  projectPath?: string;  // For display/grouping purposes
 }
 
 // VSCode instance info (from VSCode extension API)
