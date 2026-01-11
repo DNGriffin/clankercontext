@@ -249,6 +249,30 @@ class StorageManager {
     });
   }
 
+  /**
+   * Get the most recent session regardless of state.
+   * Used to retrieve issues from a previous session after extension reload.
+   */
+  async getMostRecentSession(): Promise<MonitoringSession | null> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_CONFIG.STORES.SESSIONS, 'readonly');
+      const store = tx.objectStore(IDB_CONFIG.STORES.SESSIONS);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const sessions = request.result as MonitoringSession[];
+        if (sessions.length > 0) {
+          sessions.sort((a, b) => b.startTime - a.startTime);
+          resolve(sessions[0]);
+        } else {
+          resolve(null);
+        }
+      };
+      request.onerror = () => reject(new Error(`Failed to get most recent session: ${request.error?.message}`));
+    });
+  }
+
   // Issue operations
   async addIssue(sessionId: string, issue: Issue): Promise<IDBValidKey> {
     return this.add(IDB_CONFIG.STORES.ISSUES, { ...issue, sessionId });
@@ -304,21 +328,6 @@ class StorageManager {
 
   async getConsoleErrors(sessionId: string): Promise<ConsoleError[]> {
     return this.getAllBySession(IDB_CONFIG.STORES.CONSOLE_ERRORS, sessionId);
-  }
-
-  // Get error counts for UI
-  async getErrorCounts(
-    sessionId: string
-  ): Promise<{ network: number; console: number }> {
-    const [networkErrors, consoleErrors] = await Promise.all([
-      this.getNetworkErrors(sessionId),
-      this.getConsoleErrors(sessionId),
-    ]);
-
-    return {
-      network: networkErrors.length,
-      console: consoleErrors.length,
-    };
   }
 
   // Clear only error logs (keep issues)

@@ -183,11 +183,23 @@ export class SessionStateMachine {
     this.currentState = 'idle';
     this.currentSession = null;
 
-    if (clearData && previousSession) {
-      try {
-        await storageManager.deleteSession(previousSession.sessionId);
-      } catch (e) {
-        console.error('[SessionStateMachine] Failed to clear session data:', e);
+    if (previousSession) {
+      if (clearData) {
+        try {
+          await storageManager.deleteSession(previousSession.sessionId);
+        } catch (e) {
+          console.error('[SessionStateMachine] Failed to clear session data:', e);
+        }
+      } else {
+        try {
+          await storageManager.saveSession({
+            ...previousSession,
+            state: 'idle',
+            pendingIssueType: undefined,
+          });
+        } catch (e) {
+          console.error('[SessionStateMachine] Failed to persist idle session:', e);
+        }
       }
     }
 
@@ -214,6 +226,33 @@ export class SessionStateMachine {
       console.error('[SessionStateMachine] Failed to rehydrate:', e);
     }
     return false;
+  }
+
+  /**
+   * Resume a previous session (after extension reload).
+   * Updates the session with a new tab ID and sets state to monitoring.
+   */
+  async resumeSession(session: MonitoringSession, newTabId: number): Promise<MonitoringSession> {
+    const resumedSession: MonitoringSession = {
+      ...session,
+      tabId: newTabId,
+      state: 'monitoring',
+      pendingIssueType: undefined,
+    };
+
+    this.currentSession = resumedSession;
+    this.currentState = 'monitoring';
+
+    await storageManager.saveSession(resumedSession);
+
+    this.emit({
+      type: 'stateChange',
+      state: this.currentState,
+      session: this.currentSession,
+    });
+
+    console.log('[SessionStateMachine] Resumed session:', session.sessionId, 'on tab:', newTabId);
+    return resumedSession;
   }
 
   /**

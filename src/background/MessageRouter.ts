@@ -110,11 +110,16 @@ async function handlePopupMessage(
     case 'GET_STATE': {
       const session = sessionStateMachine.getSession();
       let issues: Issue[] = [];
-      let errorCount = { network: 0, console: 0 };
 
       if (session) {
         issues = await storageManager.getIssues(session.sessionId);
-        errorCount = await storageManager.getErrorCounts(session.sessionId);
+      } else {
+        // No active session - try to get issues from the most recent session
+        // This preserves issues after extension reload
+        const recentSession = await storageManager.getMostRecentSession();
+        if (recentSession) {
+          issues = await storageManager.getIssues(recentSession.sessionId);
+        }
       }
 
       // Get paused state and auto-sending state
@@ -127,7 +132,6 @@ async function handlePopupMessage(
       return {
         session,
         issues,
-        errorCount,
         isPaused,
         autoSendingIssueId,
         autoSendingConnectionType,
@@ -157,15 +161,27 @@ async function handlePopupMessage(
         throw new Error('Page is still loading, please wait');
       }
 
-      // Start monitoring
-      await sessionStateMachine.startMonitoring(tab.id);
+      // Check if there's a previous session to resume (preserves issues after reload)
+      const existingSession = await storageManager.getMostRecentSession();
+      const resumedSession = Boolean(existingSession);
+      if (existingSession) {
+        if (existingSession.tabId !== tab.id) {
+          await storageManager.clearErrors(existingSession.sessionId);
+        }
+        // Resume the existing session on the current tab
+        await sessionStateMachine.resumeSession(existingSession, tab.id);
+        console.log('[MessageRouter] Resumed existing session:', existingSession.sessionId);
+      } else {
+        // Start a new monitoring session
+        await sessionStateMachine.startMonitoring(tab.id);
+      }
 
       // Attach CDP for error capture - if this fails, clean up the session
       try {
         await cdpController.attach(tab.id);
       } catch (error) {
-        // Clean up the session we just created
-        await sessionStateMachine.forceReset(true);
+        // Clean up the session we just created or resumed
+        await sessionStateMachine.forceReset(!resumedSession);
         await iconController.showSleepIcon();
         throw error;
       }
@@ -300,9 +316,13 @@ async function handlePopupMessage(
     }
 
     case 'EXPORT_ISSUE': {
-      const session = sessionStateMachine.getSession();
+      // Use active session, or fall back to most recent session (for after reload)
+      let session = sessionStateMachine.getSession();
       if (!session) {
-        throw new Error('No active session');
+        session = await storageManager.getMostRecentSession();
+      }
+      if (!session) {
+        throw new Error('No session found');
       }
 
       const markdown = await markdownExporter.exportIssue(
@@ -322,9 +342,13 @@ async function handlePopupMessage(
     }
 
     case 'EXPORT_ALL': {
-      const session = sessionStateMachine.getSession();
+      // Use active session, or fall back to most recent session (for after reload)
+      let session = sessionStateMachine.getSession();
       if (!session) {
-        throw new Error('No active session');
+        session = await storageManager.getMostRecentSession();
+      }
+      if (!session) {
+        throw new Error('No session found');
       }
 
       const issues = await storageManager.getIssues(session.sessionId);
@@ -509,12 +533,16 @@ async function handlePopupMessage(
 
     case 'SEND_TO_OPENCODE': {
       const connection = await storageManager.getConnectionById(message.connectionId);
-      const monitoringSession = sessionStateMachine.getSession();
+      // Use active session, or fall back to most recent session (for after reload)
+      let monitoringSession = sessionStateMachine.getSession();
+      if (!monitoringSession) {
+        monitoringSession = await storageManager.getMostRecentSession();
+      }
       if (!connection) {
         throw new Error('Connection not found');
       }
       if (!monitoringSession) {
-        throw new Error('No active monitoring session');
+        throw new Error('No session found');
       }
 
       try {
@@ -551,12 +579,16 @@ async function handlePopupMessage(
 
     case 'SEND_TO_VSCODE': {
       const connection = await storageManager.getConnectionById(message.connectionId);
-      const monitoringSession = sessionStateMachine.getSession();
+      // Use active session, or fall back to most recent session (for after reload)
+      let monitoringSession = sessionStateMachine.getSession();
+      if (!monitoringSession) {
+        monitoringSession = await storageManager.getMostRecentSession();
+      }
       if (!connection) {
         throw new Error('Connection not found');
       }
       if (!monitoringSession) {
-        throw new Error('No active monitoring session');
+        throw new Error('No session found');
       }
       if (!connection.selectedInstancePort) {
         throw new Error('Instance port not set - please reselect the VSCode instance');

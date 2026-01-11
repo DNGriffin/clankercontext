@@ -62,7 +62,8 @@ async function init(): Promise<void> {
         const tab = await chrome.tabs.get(session.tabId);
         if (!tab || isRestrictedUrl(tab.url)) {
           console.warn('[ClankerContext] Stale or restricted tab, resetting session');
-          await sessionStateMachine.forceReset(true);
+          // Use clearData=false to preserve issues across extension reloads
+          await sessionStateMachine.forceReset(false);
           await iconController.showSleepIcon();
         } else {
           await cdpController.attach(session.tabId);
@@ -70,8 +71,8 @@ async function init(): Promise<void> {
         }
       } catch (e) {
         console.warn('[ClankerContext] Tab no longer exists or failed to attach:', e);
-        // Tab doesn't exist anymore, reset the session
-        await sessionStateMachine.forceReset(true);
+        // Tab doesn't exist anymore, reset the session state but preserve issues
+        await sessionStateMachine.forceReset(false);
         await iconController.showSleepIcon();
       }
     } else if (isPaused) {

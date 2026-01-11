@@ -27,7 +27,6 @@ interface PopupState {
   error: string | null;
   session: MonitoringSession | null;
   issues: Issue[];
-  errorCount: { network: number; console: number };
   autoSendingIssueId?: string;
   autoSendingConnectionType?: 'opencode' | 'vscode';
   autoSendError?: boolean;
@@ -41,7 +40,6 @@ export function Popup(): React.ReactElement {
     error: null,
     session: null,
     issues: [],
-    errorCount: { network: 0, console: 0 },
   });
 
   const [view, setView] = useState<ViewState>('main');
@@ -114,7 +112,6 @@ export function Popup(): React.ReactElement {
         error: null,
         session: response.session,
         issues: response.issues,
-        errorCount: response.errorCount,
         autoSendingIssueId: response.autoSendingIssueId,
         autoSendingConnectionType: response.autoSendingConnectionType,
         autoSendError: response.autoSendError,
@@ -132,7 +129,6 @@ export function Popup(): React.ReactElement {
           error: null,
           session: null,
           issues: [],
-          errorCount: { network: 0, console: 0 },
         }));
         return;
       }
@@ -601,8 +597,8 @@ export function Popup(): React.ReactElement {
         </div>
       )}
 
-      {/* Compact issue list */}
-      {state.session && state.issues.length > 0 && (
+      {/* Compact issue list - show even without active session to preserve issues after reload */}
+      {state.issues.length > 0 && (
         <div className="flex flex-col gap-1 mb-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

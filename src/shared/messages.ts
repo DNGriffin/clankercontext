@@ -28,7 +28,6 @@ export type PopupToBackgroundMessage =
 export interface StateResponse {
   session: MonitoringSession | null;
   issues: Issue[];
-  errorCount: { network: number; console: number };
   isPaused: boolean;
   autoSendingIssueId?: string; // Issue currently being auto-sent
   autoSendingConnectionType?: 'opencode' | 'vscode'; // Type of connection for auto-send
