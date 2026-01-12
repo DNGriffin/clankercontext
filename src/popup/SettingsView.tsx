@@ -47,11 +47,16 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
   const [connectionHealth, setConnectionHealth] = useState<Record<string, boolean | undefined>>({});
 
   // Check health of all connections
-  const checkConnectionsHealth = useCallback(async (conns: Connection[]) => {
-    // Set all to checking (undefined)
-    const initialHealth: Record<string, boolean | undefined> = {};
-    conns.forEach(c => { initialHealth[c.id] = undefined; });
-    setConnectionHealth(initialHealth);
+  const checkConnectionsHealth = useCallback(async (
+    conns: Connection[],
+    resetHealth: boolean = true
+  ) => {
+    if (resetHealth) {
+      // Set all to checking (undefined)
+      const initialHealth: Record<string, boolean | undefined> = {};
+      conns.forEach(c => { initialHealth[c.id] = undefined; });
+      setConnectionHealth(initialHealth);
+    }
 
     // Check each connection in parallel
     await Promise.all(
@@ -161,12 +166,17 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
         if (response.error) {
           throw new Error(response.error);
         }
-        await fetchConnections();
+        const nextConnections = connections.map((conn) => ({
+          ...conn,
+          isActive: conn.id === id,
+        }));
+        setConnections(nextConnections);
+        checkConnectionsHealth(nextConnections, false);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to set active connection');
       }
     },
-    [fetchConnections]
+    [checkConnectionsHealth, connections]
   );
 
   const handleSave = useCallback(
