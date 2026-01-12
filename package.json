@@ -1,6 +1,6 @@
 {
   "name": "clankercontext",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Create high-fidelity bug reproductions for AI and humans",
   "type": "module",
   "scripts": {
