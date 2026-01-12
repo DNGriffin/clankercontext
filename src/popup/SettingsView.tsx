@@ -22,7 +22,7 @@ interface PromptTemplateState {
   updatedAt?: number;
 }
 
-const PROMPT_TEMPLATE_ORDER: IssueType[] = ['fix', 'enhancement'];
+const PROMPT_TEMPLATE_ORDER: IssueType[] = ['enhancement', 'fix'];
 
 export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React.ReactElement {
   const [connections, setConnections] = useState<Connection[]>([]);
