@@ -106,6 +106,9 @@ export function SessionPicker({
           <p className="text-xs text-muted-foreground">
             Ensure that OpenCode is running on {connection.endpoint}
           </p>
+          <p className="text-xs text-muted-foreground">
+            Start OpenCode's server by running <code className="bg-muted px-1 rounded">opencode web</code> or <code className="bg-muted px-1 rounded">opencode serve --port 4096</code>
+          </p>
           <Button variant="outline" size="sm" onClick={fetchSessions}>
             Retry
           </Button>
