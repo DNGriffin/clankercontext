@@ -58,7 +58,7 @@ export function ConnectionItem({
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
             onClick={() => onSetActive(connection.id)}
-            className="shrink-0"
+            className="shrink-0 cursor-pointer"
             title={isActive ? 'Active connection' : 'Set as active connection'}
           >
             {isActive ? (
@@ -108,7 +108,7 @@ export function ConnectionItem({
       {/* Session selector row - only for opencode type */}
       {connection.type === 'opencode' && (
         <button
-          className="flex items-center gap-2 text-left ml-4 py-1 rounded hover:bg-muted/50 -mx-1 px-1"
+          className="flex items-center gap-2 text-left ml-4 py-1 rounded hover:bg-muted/50 -mx-1 px-1 cursor-pointer"
           onClick={() => onSelectSession(connection)}
         >
           <Link2 className={cn('h-3 w-3 shrink-0', hasSession ? 'text-primary' : 'text-muted-foreground')} />
@@ -124,7 +124,7 @@ export function ConnectionItem({
       {/* Instance selector row - only for vscode type */}
       {connection.type === 'vscode' && (
         <button
-          className="flex items-center gap-2 text-left ml-4 py-1 rounded hover:bg-muted/50 -mx-1 px-1"
+          className="flex items-center gap-2 text-left ml-4 py-1 rounded hover:bg-muted/50 -mx-1 px-1 cursor-pointer"
           onClick={() => onSelectInstance(connection)}
         >
           <Link2 className={cn('h-3 w-3 shrink-0', hasInstance ? 'text-primary' : 'text-muted-foreground')} />
