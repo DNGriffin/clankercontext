@@ -192,8 +192,10 @@ function cleanupPicker(): void {
   highlightElement = null;
   tooltipElement = null;
 
-  // Remove event listeners
-  document.removeEventListener('keydown', handlePickerKeyDown);
+  // Remove event listeners (must match capture phase)
+  document.removeEventListener('mousemove', handlePickerMouseMove, true);
+  document.removeEventListener('mousedown', handlePickerClick, true);
+  document.removeEventListener('keydown', handlePickerKeyDown, true);
 }
 
 /**
@@ -234,9 +236,9 @@ function startElementPicker(): void {
     left: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    z-index: 2147483646 !important;
+    z-index: 2147483647 !important;
     cursor: crosshair !important;
-    background: transparent !important;
+    background: rgba(239, 68, 68, 0.1) !important;
   `;
 
   // Create highlight element (follows cursor)
@@ -278,12 +280,11 @@ function startElementPicker(): void {
   document.body.appendChild(highlightElement);
   document.body.appendChild(tooltipElement);
 
-  // Add event listeners
-  // Use mousedown instead of click to capture element immediately,
-  // before any page shift can occur between mousedown and mouseup
-  overlayElement.addEventListener('mousemove', handlePickerMouseMove);
-  overlayElement.addEventListener('mousedown', handlePickerClick);
-  document.addEventListener('keydown', handlePickerKeyDown);
+  // Add event listeners on document with capture phase
+  // This ensures we intercept events before any site overlays can block them
+  document.addEventListener('mousemove', handlePickerMouseMove, true);
+  document.addEventListener('mousedown', handlePickerClick, true);
+  document.addEventListener('keydown', handlePickerKeyDown, true);
 
   console.log('[ClankerContext] Element picker started');
 }
@@ -302,17 +303,33 @@ function cancelElementPicker(): void {
 }
 
 /**
+ * Get the element under cursor, filtering out our picker elements.
+ */
+function getElementUnderCursor(x: number, y: number): Element | null {
+  const elements = document.elementsFromPoint(x, y);
+
+  for (const el of elements) {
+    // Skip our picker elements
+    if (el === overlayElement || el === highlightElement || el === tooltipElement) continue;
+    if (el.classList.contains('clankercontext-selected-highlight')) continue;
+    // Skip body and html
+    if (el === document.body || el === document.documentElement) continue;
+
+    return el;
+  }
+
+  return null;
+}
+
+/**
  * Handle mouse move during element picking.
  */
 function handlePickerMouseMove(event: MouseEvent): void {
-  if (!highlightElement || !overlayElement) return;
+  if (!elementPickerActive || !highlightElement) return;
 
-  // Get element under cursor (behind overlay)
-  overlayElement.style.pointerEvents = 'none';
-  const element = document.elementFromPoint(event.clientX, event.clientY);
-  overlayElement.style.pointerEvents = 'auto';
+  const element = getElementUnderCursor(event.clientX, event.clientY);
 
-  if (!element || element === document.body || element === document.documentElement) {
+  if (!element) {
     highlightElement.style.setProperty('display', 'none', 'important');
     return;
   }
@@ -337,17 +354,14 @@ function handlePickerMouseMove(event: MouseEvent): void {
  * Handle click during element picking.
  */
 async function handlePickerClick(event: MouseEvent): Promise<void> {
-  if (!overlayElement) return;
+  if (!elementPickerActive) return;
 
   event.preventDefault();
   event.stopPropagation();
 
-  // Get element under cursor
-  overlayElement.style.pointerEvents = 'none';
-  const element = document.elementFromPoint(event.clientX, event.clientY);
-  overlayElement.style.pointerEvents = 'auto';
+  const element = getElementUnderCursor(event.clientX, event.clientY);
 
-  if (!element || element === document.body || element === document.documentElement) {
+  if (!element) {
     return;
   }
 
@@ -379,10 +393,15 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
  * Handle keyboard events during element picking.
  */
 function handlePickerKeyDown(event: KeyboardEvent): void {
+  if (!elementPickerActive) return;
+
   if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
     cancelElementPicker();
   } else if (event.key === 'Enter' && selectedElements.length > 0) {
-    // Enter finishes selection when elements are already selected
+    event.preventDefault();
+    event.stopPropagation();
     finishSelection();
   }
 }
