@@ -70,6 +70,7 @@ export interface Connection {
   // Selected OpenCode session (for opencode type)
   selectedSessionId?: string;
   selectedSessionTitle?: string;
+  selectedSessionDirectory?: string;
   // Selected VSCode instance (for vscode type)
   selectedInstanceId?: string;
   selectedInstanceName?: string;

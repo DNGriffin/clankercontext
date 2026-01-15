@@ -235,6 +235,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
             ...sessionPickerConnection,
             selectedSessionId: session.id,
             selectedSessionTitle: session.title || 'Untitled Session',
+            selectedSessionDirectory: session.directory,
           },
         })) as ConnectionMutationResponse;
 

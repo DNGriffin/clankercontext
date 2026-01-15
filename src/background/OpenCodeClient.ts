@@ -125,13 +125,18 @@ class OpenCodeClient {
 
   /**
    * Send a text message to an OpenCode session.
+   * @param endpoint - The OpenCode server endpoint
+   * @param sessionId - The session ID to send the message to
+   * @param text - The message text
+   * @param directory - The project directory (required for Instance scoping)
    */
-  async sendMessage(endpoint: string, sessionId: string, text: string): Promise<void> {
+  async sendMessage(endpoint: string, sessionId: string, text: string, directory: string): Promise<void> {
     const url = `${endpoint}/session/${sessionId}/message`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-opencode-directory': directory,
       },
       body: JSON.stringify({
         parts: [

@@ -545,12 +545,25 @@ async function handlePopupMessage(
         throw new Error('No session found');
       }
 
+      // Directory is required for OpenCode's Instance scoping
+      if (!connection.selectedSessionDirectory) {
+        return {
+          success: false,
+          error: 'Session directory not set. Please reselect the OpenCode session.',
+        } as SendToOpenCodeResponse;
+      }
+
       try {
         const markdown = await markdownExporter.exportIssue(
           monitoringSession.sessionId,
           message.issueId
         );
-        await openCodeClient.sendMessage(connection.endpoint, message.sessionId, markdown);
+        await openCodeClient.sendMessage(
+          connection.endpoint,
+          message.sessionId,
+          markdown,
+          connection.selectedSessionDirectory
+        );
         return { success: true } as SendToOpenCodeResponse;
       } catch (error) {
         return {
@@ -727,11 +740,12 @@ async function handleContentMessage(
             issue.id
           );
 
-          if (autoSendType === 'opencode' && autoSendConnection.selectedSessionId) {
+          if (autoSendType === 'opencode' && autoSendConnection.selectedSessionId && autoSendConnection.selectedSessionDirectory) {
             await openCodeClient.sendMessage(
               autoSendConnection.endpoint,
               autoSendConnection.selectedSessionId,
-              markdown
+              markdown,
+              autoSendConnection.selectedSessionDirectory
             );
             console.log('[MessageRouter] Auto-sent issue to OpenCode');
           } else if (autoSendType === 'vscode' && autoSendConnection.selectedInstanceId && autoSendConnection.selectedInstancePort) {
