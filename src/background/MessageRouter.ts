@@ -680,6 +680,17 @@ async function handleContentMessage(
       // Return to monitoring state
       await sessionStateMachine.finishElementSelection();
 
+      // Check if we should auto-copy to clipboard
+      try {
+        const { autoCopyOnLog } = await chrome.storage.local.get('autoCopyOnLog');
+        // Default to true if not set
+        if (autoCopyOnLog !== false) {
+          await chrome.storage.session.set({ autoCopyIssueId: issue.id });
+        }
+      } catch (e) {
+        console.warn('[MessageRouter] Failed to check auto-copy setting:', e);
+      }
+
       // Check if we should auto-send BEFORE opening popup
       // Only use the active connection - no fallback
       let shouldAutoSend = false;

@@ -5,13 +5,13 @@ export const PROMPT_TEMPLATE_LABELS: Record<IssueType, string> = {
   enhancement: 'Modify',
 };
 
-const FIX_TEMPLATE = `# Bug Fix: {{issue.name}}
+const FIX_TEMPLATE = `# Bug Fix
 
 ## Your Task
 The user has identified a bug that needs fixing. Review the context below, identify the root cause, and implement a fix.
 
 ## What the User Wants
-{{issue.user_prompt_blockquote}}
+> {{issue.user_prompt}}
 
 ## Context
 **Page URL:** \`{{issue.page_url}}\`
@@ -55,13 +55,13 @@ This element may be the source of the bug, or closely related to it. Inspect its
 4. Implement and test the fix
 `;
 
-const ENHANCEMENT_TEMPLATE = `# Enhancement: {{issue.name}}
+const ENHANCEMENT_TEMPLATE = `# Enhancement
 
 ## Your Task
 The user wants to add or change functionality on their web page. Review the context below and implement the requested enhancement.
 
 ## What the User Wants
-{{issue.user_prompt_blockquote}}
+> {{issue.user_prompt}}
 
 ## Context
 **Page URL:** \`{{issue.page_url}}\`

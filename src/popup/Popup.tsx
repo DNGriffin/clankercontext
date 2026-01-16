@@ -146,6 +146,38 @@ export function Popup(): React.ReactElement {
     return () => clearInterval(interval);
   }, [fetchState]);
 
+  // Handle auto-copy on issue log (copies to clipboard without marking as exported)
+  useEffect(() => {
+    const handleAutoCopy = async () => {
+      try {
+        const { autoCopyIssueId } = await chrome.storage.session.get('autoCopyIssueId');
+        if (!autoCopyIssueId) return;
+
+        // Clear the flag immediately to prevent duplicate copies
+        await chrome.storage.session.remove('autoCopyIssueId');
+
+        // Export and copy to clipboard
+        const response = (await chrome.runtime.sendMessage({
+          type: 'EXPORT_ISSUE',
+          issueId: autoCopyIssueId,
+          format: 'clipboard',
+        })) as ExportResponse;
+
+        if (response.markdown) {
+          await navigator.clipboard.writeText(response.markdown);
+          // Show success indicator (but do NOT mark as exported)
+          setActionSuccess({ id: autoCopyIssueId, type: 'copy' });
+          setTimeout(() => setActionSuccess(null), 2000);
+        }
+      } catch (e) {
+        console.error('[Popup] Auto-copy failed:', e);
+      }
+    };
+
+    // Run once on mount
+    handleAutoCopy();
+  }, []);
+
   // Handle prompt submission
   const handleSubmit = useCallback(async () => {
     try {

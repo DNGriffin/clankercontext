@@ -36,6 +36,9 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
   const [promptTemplatesLoading, setPromptTemplatesLoading] = useState(true);
   const [connectionsOpen, setConnectionsOpen] = useState(true);
   const [promptsOpen, setPromptsOpen] = useState(true);
+  const [behaviorOpen, setBehaviorOpen] = useState(true);
+  const [autoCopyOnLog, setAutoCopyOnLog] = useState(true);
+  const [autoCopyLoading, setAutoCopyLoading] = useState(true);
 
   // Session picker state (for OpenCode)
   const [sessionPickerConnection, setSessionPickerConnection] = useState<Connection | null>(null);
@@ -118,6 +121,34 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
     fetchConnections();
     fetchPromptTemplates();
   }, [fetchConnections, fetchPromptTemplates]);
+
+  // Load auto-copy setting
+  useEffect(() => {
+    const loadAutoCopySetting = async () => {
+      try {
+        const result = await chrome.storage.local.get('autoCopyOnLog');
+        // Default to true if not set
+        setAutoCopyOnLog(result.autoCopyOnLog !== false);
+      } catch (e) {
+        console.error('Failed to load auto-copy setting:', e);
+      } finally {
+        setAutoCopyLoading(false);
+      }
+    };
+    loadAutoCopySetting();
+  }, []);
+
+  const handleAutoCopyToggle = useCallback(async () => {
+    const newValue = !autoCopyOnLog;
+    setAutoCopyOnLog(newValue);
+    try {
+      await chrome.storage.local.set({ autoCopyOnLog: newValue });
+    } catch (e) {
+      // Revert on error
+      setAutoCopyOnLog(!newValue);
+      setError(e instanceof Error ? e.message : 'Failed to save setting');
+    }
+  }, [autoCopyOnLog]);
 
   const handleToggle = useCallback(
     async (id: string, enabled: boolean) => {
@@ -455,6 +486,58 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
                   </div>
                 );
               })}
+            </div>
+          )
+        ) : null}
+      </section>
+
+      <section className="mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Behavior
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setBehaviorOpen((prev) => !prev)}
+            title={behaviorOpen ? 'Collapse behavior' : 'Expand behavior'}
+            aria-label={behaviorOpen ? 'Collapse behavior' : 'Expand behavior'}
+          >
+            {behaviorOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </Button>
+        </div>
+
+        {behaviorOpen ? (
+          autoCopyLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Auto Copy Context</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Automatically copy context to clipboard after logging an issue
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoCopyOnLog}
+                  onClick={handleAutoCopyToggle}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    autoCopyOnLog ? 'bg-primary' : 'bg-input'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      autoCopyOnLog ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           )
         ) : null}
