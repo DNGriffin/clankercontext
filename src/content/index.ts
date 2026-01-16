@@ -238,7 +238,7 @@ function startElementPicker(): void {
     height: 100vh !important;
     z-index: 2147483647 !important;
     cursor: crosshair !important;
-    background: rgba(239, 68, 68, 0.1) !important;
+    background: transparent !important;
   `;
 
   // Create highlight element (follows cursor)
