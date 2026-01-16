@@ -107,7 +107,7 @@ export function SessionPicker({
             Ensure that OpenCode is running on {connection.endpoint}
           </p>
           <p className="text-xs text-muted-foreground">
-            Start OpenCode's server by running <code className="bg-muted px-1 rounded">opencode web</code> or <code className="bg-muted px-1 rounded">opencode serve --port 4096</code>
+            Start OpenCode's server by running <code className="bg-muted px-1 rounded">opencode web</code> or <code className="bg-muted px-1 rounded">opencode --port {new URL(connection.endpoint).port || '4096'}</code>
           </p>
           <Button variant="outline" size="sm" onClick={fetchSessions}>
             Retry
@@ -138,11 +138,10 @@ export function SessionPicker({
                 {projectSessions.map((session, sessionIndex) => (
                   <button
                     key={session.id}
-                    className={`flex flex-col px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
-                      sessionIndex < projectSessions.length - 1 || groupIndex < groupedSessions.size - 1
+                    className={`flex flex-col px-3 py-2 text-left hover:bg-muted/50 transition-colors ${sessionIndex < projectSessions.length - 1 || groupIndex < groupedSessions.size - 1
                         ? 'border-b'
                         : ''
-                    }`}
+                      }`}
                     onClick={() => onSelect(session)}
                   >
                     <span className="text-sm font-medium truncate">
