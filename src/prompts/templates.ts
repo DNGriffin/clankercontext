@@ -16,15 +16,13 @@ The user has identified a bug that needs fixing. Review the context below, ident
 ## Context
 **Page URL:** \`{{issue.page_url}}\`
 
-## Target Element
+## Target Element(s)
 
-The user selected this element as the focus of their request:
+The user selected the following element(s) as the focus of their request:
 
-{{element.html}}
+{{elements_markdown}}
 
-{{element.css_selector}}
-
-This element may be the source of the bug, or closely related to it. Inspect its attributes, event handlers, and parent/child relationships.
+These element(s) may be the source of the bug, or closely related to it. Inspect their attributes, event handlers, and parent/child relationships.
 
 {{#console_errors_present}}
 ## Console Errors
@@ -66,15 +64,13 @@ The user wants to add or change functionality on their web page. Review the cont
 ## Context
 **Page URL:** \`{{issue.page_url}}\`
 
-## Target Element
+## Target Element(s)
 
-The user selected this element as the focus of their request:
+The user selected the following element(s) as the focus of their request:
 
-{{element.html}}
+{{elements_markdown}}
 
-{{element.css_selector}}
-
-Use this element as reference for where to apply the enhancement. You may need to modify this element, their parents, or add sibling elements.
+Use these element(s) as reference for where to apply the enhancement. You may need to modify these elements, their parents, or add sibling elements.
 
 {{#console_errors_present}}
 ## Console Errors
