@@ -309,9 +309,15 @@ function getElementUnderCursor(x: number, y: number): Element | null {
   const elements = document.elementsFromPoint(x, y);
 
   for (const el of elements) {
-    // Skip our picker elements
+    // Skip our picker elements by reference
     if (el === overlayElement || el === highlightElement || el === tooltipElement) continue;
-    if (el.classList.contains('clankercontext-selected-highlight')) continue;
+
+    // Skip by ID prefix (fallback if reference comparison fails)
+    if (el.id?.startsWith('clankercontext-')) continue;
+
+    // Skip by class prefix
+    if (Array.from(el.classList).some((c) => c.startsWith('clankercontext-'))) continue;
+
     // Skip body and html
     if (el === document.body || el === document.documentElement) continue;
 
