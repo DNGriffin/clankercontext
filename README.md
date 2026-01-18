@@ -25,7 +25,7 @@ ClankerContext is 100% client-side. **No data is ever sent to any server.** Ther
 
 ### From Chrome Web Store
 
-Coming soon.
+[ClankerContext on Chrome Store](https://chromewebstore.google.com/detail/clankercontext/jenjdejjifbfmlbipddgoohgboapbjhi)
 
 ### From Source
 
