@@ -4,7 +4,10 @@ A Chrome Extension that generates LLM-optimized context for AI coding tools. Cap
 
 ## Demo
 
-https://github.com/DNGriffin/clankercontext/raw/main/landing/clankercontext.mp4
+
+
+https://github.com/user-attachments/assets/542925a3-9629-4502-97c6-4320b7cfe3e5
+
 
 
 
