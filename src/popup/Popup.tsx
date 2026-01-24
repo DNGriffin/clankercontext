@@ -517,17 +517,24 @@ export function Popup(): React.ReactElement {
       {/* Compact Header */}
       <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <img
-            src={
-              !state.session || isPaused
-                ? '/icons/asleep-128.png'
-                : iconToggle
-                  ? '/icons/litlogo-128.png'
-                  : '/icons/icon-128.png'
-            }
-            alt="ClankerContext"
-            className="h-10 w-10 rounded"
-          />
+          <a
+            href="https://clankercontext.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Visit clankercontext.com"
+          >
+            <img
+              src={
+                !state.session || isPaused
+                  ? '/icons/asleep-128.png'
+                  : iconToggle
+                    ? '/icons/litlogo-128.png'
+                    : '/icons/icon-128.png'
+              }
+              alt="ClankerContext"
+              className="h-10 w-10 rounded cursor-pointer"
+            />
+          </a>
           <span className="text-base font-semibold">ClankerContext</span>
         </div>
         <div className="flex items-center gap-1">
