@@ -8,7 +8,8 @@
  */
 
 import type { BackgroundToContentMessage } from '@/shared/messages';
-import type { CapturedElement } from '@/shared/types';
+import type { CapturedCustomAttribute, CapturedElement, CustomAttribute } from '@/shared/types';
+import { normalizeAttributeName } from '@/shared/utils';
 import { getBestSelector } from './SelectorGenerator';
 import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
 
@@ -21,6 +22,9 @@ let tooltipElement: HTMLDivElement | null = null;
 // Multi-select state
 let selectedElements: CapturedElement[] = [];
 let selectedHighlights: HTMLDivElement[] = [];
+
+// Custom attributes config for element capture
+let customAttributesConfig: CustomAttribute[] = [];
 
 /**
  * Initialize the content script.
@@ -42,6 +46,7 @@ function handleMessage(
 
   switch (message.type) {
     case 'START_ELEMENT_PICKER':
+      customAttributesConfig = message.customAttributes || [];
       startElementPicker();
       sendResponse({ success: true });
       break;
@@ -132,6 +137,67 @@ function createSelectedHighlight(element: Element, index: number): HTMLDivElemen
 }
 
 /**
+ * Find a custom attribute value on or near an element.
+ * Searches based on the configured direction: parent, descendant, or both.
+ */
+function findCustomAttribute(
+  element: Element,
+  config: CustomAttribute
+): CapturedCustomAttribute | null {
+  const selector = `[${CSS.escape(config.name)}]`;
+
+  // 1. Search parents including self (for 'parent' or 'both' directions)
+  // Uses native closest() - browser-optimized ancestor search
+  if (config.searchDirection === 'parent' || config.searchDirection === 'both') {
+    const ancestor = element.closest(selector);
+    if (ancestor) {
+      const value = ancestor.getAttribute(config.name);
+      if (value !== null) {
+        const foundOn = ancestor === element ? 'selected' : 'parent';
+        return {
+          name: config.name,
+          tokenName: normalizeAttributeName(config.name),
+          value,
+          foundOn,
+        };
+      }
+    }
+  }
+
+  // 2. Check self only (for 'descendant' direction - check self before searching children)
+  if (config.searchDirection === 'descendant') {
+    const directValue = element.getAttribute(config.name);
+    if (directValue !== null) {
+      return {
+        name: config.name,
+        tokenName: normalizeAttributeName(config.name),
+        value: directValue,
+        foundOn: 'selected',
+      };
+    }
+  }
+
+  // 3. Search descendants (for 'descendant' or 'both' directions)
+  // Uses native querySelector - browser-optimized, stops at first match
+  if (config.searchDirection === 'descendant' || config.searchDirection === 'both') {
+    const descendant = element.querySelector(selector);
+    if (descendant) {
+      const value = descendant.getAttribute(config.name);
+      if (value !== null) {
+        return {
+          name: config.name,
+          tokenName: normalizeAttributeName(config.name),
+          value,
+          foundOn: 'descendant',
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Capture element data (HTML and selector).
  */
 function captureElement(element: Element): CapturedElement {
@@ -142,7 +208,16 @@ function captureElement(element: Element): CapturedElement {
 
   const selector = getBestSelector(element);
 
-  return { html, selector };
+  // Capture custom attributes
+  const customAttributes = customAttributesConfig
+    .map((config) => findCustomAttribute(element, config))
+    .filter((attr): attr is CapturedCustomAttribute => attr !== null);
+
+  return {
+    html,
+    selector,
+    customAttributes: customAttributes.length > 0 ? customAttributes : undefined,
+  };
 }
 
 /**

@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import type { Connection, IssueType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
-import type { ConnectionsResponse, ConnectionMutationResponse, TestConnectionResponse } from '@/shared/messages';
+import type { Connection, CustomAttribute, IssueType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
+import type { ConnectionsResponse, ConnectionMutationResponse, CustomAttributesResponse, CustomAttributeMutationResponse, TestConnectionResponse } from '@/shared/messages';
 import { storageManager } from '@/background/StorageManager';
 import { PROMPT_TEMPLATE_LABELS } from '@/prompts/templates';
 import { ConnectionItem } from './components/ConnectionItem';
 import { ConnectionForm } from './components/ConnectionForm';
 import { SessionPicker } from './components/SessionPicker';
 import { InstancePicker } from './components/InstancePicker';
+import { CustomAttributeItem } from './components/CustomAttributeItem';
+import { CustomAttributeForm } from './components/CustomAttributeForm';
 
 interface SettingsViewProps {
   onBack: () => void;
@@ -39,6 +41,13 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
   const [behaviorOpen, setBehaviorOpen] = useState(true);
   const [autoCopyOnLog, setAutoCopyOnLog] = useState(true);
   const [autoCopyLoading, setAutoCopyLoading] = useState(true);
+
+  // Custom attributes state
+  const [customAttributes, setCustomAttributes] = useState<CustomAttribute[]>([]);
+  const [customAttributesLoading, setCustomAttributesLoading] = useState(true);
+  const [customAttributesOpen, setCustomAttributesOpen] = useState(true);
+  const [isAddingAttribute, setIsAddingAttribute] = useState(false);
+  const [editingAttribute, setEditingAttribute] = useState<CustomAttribute | null>(null);
 
   // Session picker state (for OpenCode)
   const [sessionPickerConnection, setSessionPickerConnection] = useState<Connection | null>(null);
@@ -100,6 +109,20 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
     }
   }, []);
 
+  const fetchCustomAttributes = useCallback(async () => {
+    try {
+      setCustomAttributesLoading(true);
+      const response = (await chrome.runtime.sendMessage({
+        type: 'GET_CUSTOM_ATTRIBUTES',
+      })) as CustomAttributesResponse;
+      setCustomAttributes(response.customAttributes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load custom attributes');
+    } finally {
+      setCustomAttributesLoading(false);
+    }
+  }, []);
+
   const fetchConnections = useCallback(async () => {
     try {
       setLoading(true);
@@ -120,7 +143,8 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
   useEffect(() => {
     fetchConnections();
     fetchPromptTemplates();
-  }, [fetchConnections, fetchPromptTemplates]);
+    fetchCustomAttributes();
+  }, [fetchConnections, fetchPromptTemplates, fetchCustomAttributes]);
 
   // Load auto-copy setting
   useEffect(() => {
@@ -149,6 +173,57 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       setError(e instanceof Error ? e.message : 'Failed to save setting');
     }
   }, [autoCopyOnLog]);
+
+  const handleSaveAttribute = useCallback(
+    async (data: Omit<CustomAttribute, 'id' | 'createdAt' | 'updatedAt'>) => {
+      try {
+        if (editingAttribute) {
+          const response = (await chrome.runtime.sendMessage({
+            type: 'UPDATE_CUSTOM_ATTRIBUTE',
+            attribute: {
+              ...editingAttribute,
+              ...data,
+            },
+          })) as CustomAttributeMutationResponse;
+          if (response.error) {
+            throw new Error(response.error);
+          }
+          setEditingAttribute(null);
+        } else {
+          const response = (await chrome.runtime.sendMessage({
+            type: 'ADD_CUSTOM_ATTRIBUTE',
+            attribute: data,
+          })) as CustomAttributeMutationResponse;
+          if (response.error) {
+            throw new Error(response.error);
+          }
+          setIsAddingAttribute(false);
+        }
+        await fetchCustomAttributes();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to save custom attribute');
+      }
+    },
+    [editingAttribute, fetchCustomAttributes]
+  );
+
+  const handleDeleteAttribute = useCallback(
+    async (id: string) => {
+      try {
+        const response = (await chrome.runtime.sendMessage({
+          type: 'DELETE_CUSTOM_ATTRIBUTE',
+          attributeId: id,
+        })) as CustomAttributeMutationResponse;
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchCustomAttributes();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to delete custom attribute');
+      }
+    },
+    [fetchCustomAttributes]
+  );
 
   const handleToggle = useCallback(
     async (id: string, enabled: boolean) => {
@@ -348,6 +423,19 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
     );
   }
 
+  if (isAddingAttribute || editingAttribute) {
+    return (
+      <CustomAttributeForm
+        attribute={editingAttribute}
+        onSave={handleSaveAttribute}
+        onCancel={() => {
+          setIsAddingAttribute(false);
+          setEditingAttribute(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full p-3">
       <div className="flex items-center gap-2 mb-4">
@@ -538,6 +626,71 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
                   />
                 </button>
               </div>
+            </div>
+          )
+        ) : null}
+      </section>
+
+      <section className="mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Custom Attributes
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setCustomAttributesOpen((prev) => !prev)}
+              title={customAttributesOpen ? 'Collapse custom attributes' : 'Expand custom attributes'}
+              aria-label={customAttributesOpen ? 'Collapse custom attributes' : 'Expand custom attributes'}
+            >
+              {customAttributesOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setIsAddingAttribute(true)}
+              title="Add custom attribute"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        {customAttributesOpen ? (
+          customAttributesLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : customAttributes.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                No custom attributes configured
+              </p>
+              <p className="text-xs text-muted-foreground max-w-[250px]">
+                Add attributes like data-testid or data-qa to capture when selecting elements
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddingAttribute(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add attribute
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col border rounded-md divide-y">
+              {customAttributes.map((attr) => (
+                <CustomAttributeItem
+                  key={attr.id}
+                  attribute={attr}
+                  onEdit={() => setEditingAttribute(attr)}
+                  onDelete={handleDeleteAttribute}
+                />
+              ))}
             </div>
           )
         ) : null}

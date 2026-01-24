@@ -1,7 +1,7 @@
 // IndexedDB configuration
 export const IDB_CONFIG = {
   DB_NAME: 'ClankerContextDB',
-  DB_VERSION: 5,
+  DB_VERSION: 6,
   STORES: {
     SESSIONS: 'sessions',
     ISSUES: 'issues',
@@ -9,6 +9,7 @@ export const IDB_CONFIG = {
     CONSOLE_ERRORS: 'console_errors',
     CONNECTIONS: 'connections',
     PROMPT_TEMPLATES: 'prompt_templates',
+    CUSTOM_ATTRIBUTES: 'custom_attributes',
   },
 } as const;
 

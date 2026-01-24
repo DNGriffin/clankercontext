@@ -13,7 +13,7 @@ function isTruthy(value: TemplateValue | undefined): boolean {
 
 /**
  * Minimal template renderer with {{token}} replacements and {{#section}} blocks.
- * Unknown tokens/sections are left intact to make debugging easier.
+ * Unknown tokens/sections are removed from output.
  */
 export function renderTemplate(
   template: string,
@@ -22,12 +22,12 @@ export function renderTemplate(
   let output = template;
 
   output = output.replace(SECTION_REGEX, (_match, key: string, body: string) => {
-    if (!(key in context)) return _match;
+    if (!(key in context)) return '';
     return isTruthy(context[key]) ? body : '';
   });
 
   output = output.replace(TOKEN_REGEX, (_match, key: string) => {
-    if (!(key in context)) return _match;
+    if (!(key in context)) return '';
     return String(context[key]);
   });
 

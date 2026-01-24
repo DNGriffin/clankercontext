@@ -97,7 +97,36 @@ class MarkdownExporter {
       network_errors_present: networkErrors.length > 0,
       network_errors_table: networkErrorsTable,
       errors_present: hasErrors,
+      ...this.buildCustomAttributeTokens(issue.elements),
     };
+  }
+
+  /**
+   * Build template context tokens for custom attributes.
+   * Collects custom attributes from all elements and creates tokens.
+   */
+  private buildCustomAttributeTokens(elements: CapturedElement[]): Record<string, string | boolean> {
+    const customAttrMap = new Map<string, string>();
+
+    // Collect custom attributes from all elements, using first found value for each
+    for (const element of elements) {
+      if (element.customAttributes) {
+        for (const attr of element.customAttributes) {
+          if (!customAttrMap.has(attr.tokenName)) {
+            customAttrMap.set(attr.tokenName, attr.value);
+          }
+        }
+      }
+    }
+
+    // Build context tokens
+    const tokens: Record<string, string | boolean> = {};
+    for (const [tokenName, value] of customAttrMap) {
+      tokens[tokenName] = value;                    // {{data_qa}} → "login-button"
+      tokens[`${tokenName}_present`] = true;        // {{#data_qa_present}} → renders section
+    }
+
+    return tokens;
   }
 
   private buildElementsMarkdown(elements: CapturedElement[]): string {

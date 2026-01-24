@@ -1,4 +1,4 @@
-import type { CapturedElement, Connection, Issue, IssueType, MonitoringSession, OpenCodeSession, VSCodeInstance } from './types';
+import type { CapturedElement, Connection, CustomAttribute, Issue, IssueType, MonitoringSession, OpenCodeSession, VSCodeInstance } from './types';
 
 // Popup -> Background messages
 export type PopupToBackgroundMessage =
@@ -22,7 +22,11 @@ export type PopupToBackgroundMessage =
   | { type: 'GET_OPENCODE_SESSIONS'; connectionId: string }
   | { type: 'SEND_TO_OPENCODE'; connectionId: string; sessionId: string; issueId: string }
   | { type: 'GET_VSCODE_INSTANCES'; connectionId: string }
-  | { type: 'SEND_TO_VSCODE'; connectionId: string; instanceId: string; issueId: string };
+  | { type: 'SEND_TO_VSCODE'; connectionId: string; instanceId: string; issueId: string }
+  | { type: 'GET_CUSTOM_ATTRIBUTES' }
+  | { type: 'ADD_CUSTOM_ATTRIBUTE'; attribute: Omit<CustomAttribute, 'id' | 'createdAt' | 'updatedAt'> }
+  | { type: 'UPDATE_CUSTOM_ATTRIBUTE'; attribute: CustomAttribute }
+  | { type: 'DELETE_CUSTOM_ATTRIBUTE'; attributeId: string };
 
 // Background -> Popup responses
 export interface StateResponse {
@@ -79,9 +83,20 @@ export interface SendToVSCodeResponse {
   error?: string;
 }
 
+// Custom attributes responses
+export interface CustomAttributesResponse {
+  customAttributes: CustomAttribute[];
+}
+
+export interface CustomAttributeMutationResponse {
+  success: boolean;
+  customAttribute?: CustomAttribute;
+  error?: string;
+}
+
 // Background -> Content messages
 export type BackgroundToContentMessage =
-  | { type: 'START_ELEMENT_PICKER'; issueType: IssueType }
+  | { type: 'START_ELEMENT_PICKER'; issueType: IssueType; customAttributes?: CustomAttribute[] }
   | { type: 'CANCEL_ELEMENT_PICKER' };
 
 // Content -> Background messages

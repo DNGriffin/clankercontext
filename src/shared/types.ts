@@ -4,6 +4,26 @@ export type SessionState = 'idle' | 'monitoring' | 'selecting_element';
 // Issue Types
 export type IssueType = 'enhancement' | 'fix';
 
+// Custom Attribute Search Direction
+export type AttributeSearchDirection = 'parent' | 'descendant' | 'both';
+
+// Custom attribute configuration
+export interface CustomAttribute {
+  id: string;
+  name: string;  // e.g., "data-qa"
+  searchDirection: AttributeSearchDirection;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Captured custom attribute from an element
+export interface CapturedCustomAttribute {
+  name: string;       // Original: "data-qa"
+  tokenName: string;  // Normalized: "data_qa"
+  value: string;
+  foundOn: 'selected' | 'parent' | 'descendant';
+}
+
 // Prompt template stored in IndexedDB
 export interface PromptTemplate {
   type: IssueType;
@@ -15,6 +35,7 @@ export interface PromptTemplate {
 export interface CapturedElement {
   html: string;      // outerHTML of the element
   selector: string;  // CSS selector for reference
+  customAttributes?: CapturedCustomAttribute[];  // Captured custom attributes
 }
 
 // Issue - captured bug or enhancement request

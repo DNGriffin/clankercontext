@@ -2,6 +2,7 @@ import { IDB_CONFIG, DEFAULT_CONNECTIONS } from '@/shared/constants';
 import type {
   Connection,
   ConsoleError,
+  CustomAttribute,
   Issue,
   IssueType,
   MonitoringSession,
@@ -105,6 +106,14 @@ class StorageManager {
       db.createObjectStore(IDB_CONFIG.STORES.PROMPT_TEMPLATES, {
         keyPath: 'type',
       });
+    }
+
+    // Custom attributes store (added in version 6)
+    if (!db.objectStoreNames.contains(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES)) {
+      const store = db.createObjectStore(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES, {
+        keyPath: 'id',
+      });
+      store.createIndex('name', 'name', { unique: true });
     }
   }
 
@@ -434,6 +443,54 @@ class StorageManager {
 
   async deletePromptTemplate(type: IssueType): Promise<void> {
     return this.delete(IDB_CONFIG.STORES.PROMPT_TEMPLATES, type);
+  }
+
+  // Custom attribute operations
+  async getCustomAttributes(): Promise<CustomAttribute[]> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES, 'readonly');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result as CustomAttribute[]);
+      request.onerror = () =>
+        reject(new Error(`Failed to get custom attributes: ${request.error?.message}`));
+    });
+  }
+
+  async getCustomAttributeById(id: string): Promise<CustomAttribute | null> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES, 'readonly');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES);
+      const request = store.get(id);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () =>
+        reject(new Error(`Failed to get custom attribute: ${request.error?.message}`));
+    });
+  }
+
+  async addCustomAttribute(attribute: CustomAttribute): Promise<IDBValidKey> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES, 'readwrite');
+      const store = transaction.objectStore(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES);
+      const request = store.add(attribute);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(new Error(`Failed to add custom attribute: ${request.error?.message}`));
+    });
+  }
+
+  async updateCustomAttribute(attribute: CustomAttribute): Promise<IDBValidKey> {
+    return this.put(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES, attribute);
+  }
+
+  async deleteCustomAttribute(attributeId: string): Promise<void> {
+    return this.delete(IDB_CONFIG.STORES.CUSTOM_ATTRIBUTES, attributeId);
   }
 
   /**

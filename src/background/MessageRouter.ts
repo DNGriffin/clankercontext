@@ -3,6 +3,8 @@ import type {
   ConnectionMutationResponse,
   ConnectionsResponse,
   ContentToBackgroundMessage,
+  CustomAttributeMutationResponse,
+  CustomAttributesResponse,
   ExportResponse,
   OpenCodeSessionsResponse,
   PopupToBackgroundMessage,
@@ -12,7 +14,8 @@ import type {
   TestConnectionResponse,
   VSCodeInstancesResponse,
 } from '@/shared/messages';
-import type { Connection, Issue } from '@/shared/types';
+import type { Connection, CustomAttribute, Issue } from '@/shared/types';
+import { isValidAttributeName, isValidSearchDirection } from '@/shared/utils';
 import { storageManager } from './StorageManager';
 import { sessionStateMachine } from './SessionStateMachine';
 import { markdownExporter } from '@/exporter/MarkdownExporter';
@@ -101,7 +104,7 @@ async function downloadMarkdown(content: string, filename: string): Promise<void
 async function handlePopupMessage(
   message: PopupToBackgroundMessage,
   _sender: chrome.runtime.MessageSender
-): Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | VSCodeInstancesResponse | SendToVSCodeResponse | boolean> {
+): Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | VSCodeInstancesResponse | SendToVSCodeResponse | CustomAttributesResponse | CustomAttributeMutationResponse | boolean> {
   // Wait for initialization to complete (ensures session is rehydrated)
   // This prevents race conditions when service worker restarts
   await initPromise;
@@ -284,12 +287,16 @@ async function handlePopupMessage(
       // Start element selection
       await sessionStateMachine.startElementSelection(message.issueType);
 
+      // Fetch custom attributes to pass to content script
+      const customAttributes = await storageManager.getCustomAttributes();
+
       // Tell content script to start element picker
       console.log('[MessageRouter] Sending START_ELEMENT_PICKER to tab:', session.tabId);
       try {
         const response = await chrome.tabs.sendMessage(session.tabId, {
           type: 'START_ELEMENT_PICKER',
           issueType: message.issueType,
+          customAttributes,
         } as BackgroundToContentMessage);
         console.log('[MessageRouter] START_ELEMENT_PICKER response:', response);
       } catch (e) {
@@ -622,6 +629,132 @@ async function handlePopupMessage(
       }
     }
 
+    case 'GET_CUSTOM_ATTRIBUTES': {
+      const customAttributes = await storageManager.getCustomAttributes();
+      return { customAttributes } as CustomAttributesResponse;
+    }
+
+    case 'ADD_CUSTOM_ATTRIBUTE': {
+      try {
+        // Validate attribute name
+        const attrName = message.attribute.name?.trim();
+        if (!attrName) {
+          return { success: false, error: 'Attribute name is required' } as CustomAttributeMutationResponse;
+        }
+        if (!isValidAttributeName(attrName)) {
+          return {
+            success: false,
+            error: 'Invalid attribute name. Must start with a letter and contain only letters, numbers, hyphens, or underscores.',
+          } as CustomAttributeMutationResponse;
+        }
+
+        // Validate search direction
+        if (!isValidSearchDirection(message.attribute.searchDirection)) {
+          return {
+            success: false,
+            error: 'Invalid search direction. Must be "parent", "descendant", or "both".',
+          } as CustomAttributeMutationResponse;
+        }
+
+        // Check for duplicate name
+        const existingAttributes = await storageManager.getCustomAttributes();
+        const duplicate = existingAttributes.find(
+          (a) => a.name.toLowerCase() === attrName.toLowerCase()
+        );
+        if (duplicate) {
+          return {
+            success: false,
+            error: `Attribute "${attrName}" already exists.`,
+          } as CustomAttributeMutationResponse;
+        }
+
+        const now = Date.now();
+        const customAttribute: CustomAttribute = {
+          name: attrName,
+          searchDirection: message.attribute.searchDirection,
+          id: `attr_${now}_${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await storageManager.addCustomAttribute(customAttribute);
+        return { success: true, customAttribute } as CustomAttributeMutationResponse;
+      } catch (error) {
+        console.error('[MessageRouter] ADD_CUSTOM_ATTRIBUTE error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to add custom attribute',
+        } as CustomAttributeMutationResponse;
+      }
+    }
+
+    case 'UPDATE_CUSTOM_ATTRIBUTE': {
+      try {
+        // Validate attribute name
+        const attrName = message.attribute.name?.trim();
+        if (!attrName) {
+          return { success: false, error: 'Attribute name is required' } as CustomAttributeMutationResponse;
+        }
+        if (!isValidAttributeName(attrName)) {
+          return {
+            success: false,
+            error: 'Invalid attribute name. Must start with a letter and contain only letters, numbers, hyphens, or underscores.',
+          } as CustomAttributeMutationResponse;
+        }
+
+        // Validate search direction
+        if (!isValidSearchDirection(message.attribute.searchDirection)) {
+          return {
+            success: false,
+            error: 'Invalid search direction. Must be "parent", "descendant", or "both".',
+          } as CustomAttributeMutationResponse;
+        }
+
+        // Check for duplicate name (exclude current attribute)
+        const existingAttributes = await storageManager.getCustomAttributes();
+        const duplicate = existingAttributes.find(
+          (a) => a.name.toLowerCase() === attrName.toLowerCase() && a.id !== message.attribute.id
+        );
+        if (duplicate) {
+          return {
+            success: false,
+            error: `Attribute "${attrName}" already exists.`,
+          } as CustomAttributeMutationResponse;
+        }
+
+        const updated: CustomAttribute = {
+          id: message.attribute.id,
+          name: attrName,
+          searchDirection: message.attribute.searchDirection,
+          createdAt: message.attribute.createdAt,
+          updatedAt: Date.now(),
+        };
+        await storageManager.updateCustomAttribute(updated);
+        return { success: true, customAttribute: updated } as CustomAttributeMutationResponse;
+      } catch (error) {
+        console.error('[MessageRouter] UPDATE_CUSTOM_ATTRIBUTE error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to update custom attribute',
+        } as CustomAttributeMutationResponse;
+      }
+    }
+
+    case 'DELETE_CUSTOM_ATTRIBUTE': {
+      try {
+        if (!message.attributeId) {
+          return { success: false, error: 'Attribute ID is required' } as CustomAttributeMutationResponse;
+        }
+        await storageManager.deleteCustomAttribute(message.attributeId);
+        return { success: true } as CustomAttributeMutationResponse;
+      } catch (error) {
+        console.error('[MessageRouter] DELETE_CUSTOM_ATTRIBUTE error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to delete custom attribute',
+        } as CustomAttributeMutationResponse;
+      }
+    }
+
     default:
       throw new Error(`Unknown message type: ${(message as { type: string }).type}`);
   }
@@ -807,7 +940,7 @@ export function initMessageRouter(): void {
     const isFromPopup = !sender.tab;
     const isFromContent = !!sender.tab;
 
-    let handlePromise: Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | VSCodeInstancesResponse | SendToVSCodeResponse | boolean>;
+    let handlePromise: Promise<StateResponse | ExportResponse | ConnectionsResponse | ConnectionMutationResponse | TestConnectionResponse | OpenCodeSessionsResponse | SendToOpenCodeResponse | VSCodeInstancesResponse | SendToVSCodeResponse | CustomAttributesResponse | CustomAttributeMutationResponse | boolean>;
 
     if (isFromPopup) {
       handlePromise = handlePopupMessage(
