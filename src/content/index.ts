@@ -141,6 +141,56 @@ function createSelectedHighlight(element: Element, index: number): HTMLDivElemen
 }
 
 /**
+ * Show a toast notification on the page.
+ * Used for quick select to provide immediate feedback without reopening popup.
+ */
+function showCopiedToast(): void {
+  const toast = document.createElement('div');
+  toast.id = 'clankercontext-toast';
+  toast.style.cssText = `
+    position: fixed !important;
+    bottom: 24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 2147483647 !important;
+    padding: 12px 20px !important;
+    background: #1a1a1a !important;
+    color: white !important;
+    border-radius: 8px !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 14px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    opacity: 1 !important;
+    transition: opacity 0.2s ease !important;
+  `;
+
+  // Green checkmark icon
+  const checkmark = document.createElement('span');
+  checkmark.style.cssText = `
+    color: #22c55e !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+  `;
+  checkmark.textContent = '✓';
+
+  const text = document.createElement('span');
+  text.textContent = 'Copied to clipboard';
+
+  toast.appendChild(checkmark);
+  toast.appendChild(text);
+  document.body.appendChild(toast);
+
+  // Auto-dismiss after 1.5s with fade
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 200);
+  }, 1500);
+}
+
+/**
  * Create a temporary confirmation highlight that auto-removes after delay.
  * Used for single-select to show what was selected without blocking the user.
  */
@@ -298,6 +348,8 @@ function finishSelection(): void {
       elements: elementsToSend,
       pageUrl: window.location.href,
     });
+    // Show toast notification on the page
+    showCopiedToast();
     console.log('[ClankerContext] Quick select completed:', elementCount, 'elements');
   } else {
     chrome.runtime.sendMessage({

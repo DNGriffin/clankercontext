@@ -827,16 +827,6 @@ async function handleContentMessage(
           args: [markdown],
         });
         console.log('[MessageRouter] Quick select markdown copied to clipboard');
-
-        // Store success flag for popup to show toast
-        await chrome.storage.session.set({ quickSelectSuccess: true });
-
-        // Reopen popup to show success feedback
-        try {
-          await chrome.action.openPopup();
-        } catch (e) {
-          console.warn('[MessageRouter] Could not open popup:', e);
-        }
       } catch (e) {
         console.error('[MessageRouter] Failed to copy to clipboard:', e);
       }

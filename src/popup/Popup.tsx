@@ -79,26 +79,6 @@ export function Popup(): React.ReactElement {
     }
   }, [state.autoSendError]);
 
-  // Handle quick select success toast
-  useEffect(() => {
-    const checkQuickSelectSuccess = async () => {
-      try {
-        const { quickSelectSuccess } = await chrome.storage.session.get('quickSelectSuccess');
-        if (quickSelectSuccess) {
-          await chrome.storage.session.remove('quickSelectSuccess');
-          // Show success toast
-          setToast({ message: 'Copied to clipboard', type: 'success' });
-          // Also show checkmark on button if visible
-          setActionSuccess({ id: 'quickSelect', type: 'copy' });
-          setTimeout(() => setActionSuccess(null), 500);
-        }
-      } catch (e) {
-        console.error('[Popup] Failed to check quick select success:', e);
-      }
-    };
-    checkQuickSelectSuccess();
-  }, []);
-
   // Auto-dismiss toast (1.5s for success, 3s for errors)
   useEffect(() => {
     if (toast) {
