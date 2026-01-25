@@ -180,13 +180,13 @@ body {
 
 /* Hero Section */
 .hero {
-  padding: 80px 0;
+  padding: 60px 0;
 }
 
 .hero-content {
   text-align: center;
   max-width: 800px;
-  margin: 0 auto 60px;
+  margin: 0 auto 40px;
 }
 
 .hero-title {
@@ -276,27 +276,33 @@ body {
   color: var(--color-text-muted);
   text-align: center;
   max-width: 600px;
-  margin: 0 auto 48px;
+  margin: 0 auto 32px;
   line-height: 1.7;
 }
 
 /* Features Section */
 .features {
-  padding: 100px 0;
+  padding: 64px 0;
   background: var(--color-bg-alt);
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .feature-card {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 32px;
+  border-radius: var(--radius-md);
+  padding: 16px;
   transition: all var(--transition-base);
 }
 
@@ -307,37 +313,37 @@ body {
 }
 
 .feature-icon {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   background: var(--color-accent-light);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .feature-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   stroke: var(--color-accent);
 }
 
 .feature-card h3 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .feature-card p {
   color: var(--color-text-muted);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Compatibility Section */
 .compatibility {
-  padding: 100px 0;
+  padding: 64px 0;
 }
 
 .tools-grid {
@@ -361,9 +367,21 @@ body {
   font-size: 15px;
 }
 
+.tool-badge {
+  display: block;
+  font-size: 10px;
+  color: var(--color-accent);
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+a.tool-badge:hover {
+  text-decoration: underline;
+}
+
 /* Privacy Section */
 .privacy {
-  padding: 100px 0;
+  padding: 64px 0;
   background: var(--color-text);
   color: #ffffff;
 }
@@ -382,7 +400,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 32px;
+  margin: 0 auto 24px;
 }
 
 .privacy-icon svg {
@@ -416,14 +434,14 @@ body {
 
 /* How It Works Section */
 .how-it-works {
-  padding: 100px 0;
+  padding: 64px 0;
   background: var(--color-bg-alt);
 }
 
 .steps {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 40px;
+  gap: 32px;
   max-width: 1000px;
   margin: 0 auto;
 }
@@ -434,17 +452,17 @@ body {
 }
 
 .step-number {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   background: var(--color-primary);
   color: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  margin: 0 auto 24px;
+  margin: 0 auto 16px;
 }
 
 .step h3 {
@@ -461,7 +479,7 @@ body {
 
 /* FAQ Section */
 .faq {
-  padding: 100px 0;
+  padding: 64px 0;
 }
 
 .faq-list {
@@ -474,7 +492,7 @@ body {
 }
 
 .faq-item summary {
-  padding: 24px 0;
+  padding: 18px 0;
   font-size: 17px;
   font-weight: 500;
   cursor: pointer;
@@ -501,7 +519,7 @@ body {
 }
 
 .faq-item p {
-  padding: 0 0 24px 0;
+  padding: 0 0 18px 0;
   color: var(--color-text-muted);
   line-height: 1.7;
   font-size: 15px;
@@ -518,13 +536,13 @@ body {
 
 /* Install Section */
 .install {
-  padding: 120px 0;
+  padding: 80px 0;
   background: linear-gradient(180deg, var(--color-bg-alt) 0%, var(--color-bg) 100%);
   text-align: center;
 }
 
 .install-cta {
-  margin-top: 48px;
+  margin-top: 32px;
 }
 
 .install-note {
@@ -540,7 +558,7 @@ body {
 
 /* Footer */
 .footer {
-  padding: 48px 0;
+  padding: 32px 0;
   border-top: 1px solid var(--color-border);
 }
 

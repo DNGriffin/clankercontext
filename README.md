@@ -15,14 +15,16 @@ https://github.com/user-attachments/assets/542925a3-9629-4502-97c6-4320b7cfe3e5
 
 - **Element Capture** - Point and click to capture any element's HTML
 - **Multi-Element Selection** - Ctrl/Cmd+click to select multiple elements with numbered badges
+- **Quick Select** - Instantly copy element HTML and selectors to clipboard without creating an issue
 - **CSS Selectors** - Auto-generates robust selectors using data-testid, ARIA labels, IDs, and smart fallbacks
 - **Console Errors** - Captures JavaScript errors with full stack traces
 - **Network Failures** - Logs failed API calls with status codes and URLs
 - **Markdown Export** - One-click export to LLM-optimized markdown (clipboard or file)
 - **Custom Prompt Templates** - Edit Fix/Enhancement templates in Settings to match your workflow
+- **Custom Attributes** - Configure additional HTML attributes to capture and use in prompt templates
 - **Pause/Resume Monitoring** - Pause error capture without losing session data
 - **Auto-Copy to Clipboard** - Automatically copy context after logging an issue
-- **Direct Integrations** - Send context directly to OpenCode or VSCode 
+- **Direct Integrations** - Send context directly to OpenCode or VSCode
 - **Zero Footprint** - Does nothing until you click "Start listening"
 
 ## Privacy
@@ -72,6 +74,67 @@ ClankerContext is 100% client-side. **No data is ever sent to any server.** Ther
 - Use the **Pause** button to temporarily stop monitoring without losing your session
 - Open **Settings** to customize prompt templates and enable auto-copy
 - Configure **Connections** for direct integration with OpenCode or VSCode
+
+### Quick Select
+
+Use Quick Select to instantly copy element HTML and selectors to your clipboard without creating a full issue:
+
+1. Click the **pointer icon** button in the extension header (no active session required)
+2. Click on any element to select it, or **Ctrl/Cmd+click** to select multiple elements
+3. Press **Enter** or single-click to finish selection
+4. Content is automatically copied to clipboard with a toast notification
+
+Quick Select is perfect for quick reference or gathering context across multiple pages before starting a focused session.
+
+### Multi-Element Selection
+
+When logging issues or using Quick Select, you can select multiple elements:
+
+1. Hold **Ctrl** (Windows/Linux) or **Cmd** (Mac) while clicking to add elements
+2. Each selected element displays a numbered badge
+3. Press **Enter** or single-click without modifier to finish selection
+4. All elements are included in the exported context
+
+### Custom Attributes
+
+Configure additional HTML attributes to capture beyond the default set:
+
+1. Go to **Settings > Custom Attributes**
+2. Add attribute names you want to capture (e.g., `data-qa`, `data-component`)
+3. Choose a search direction: **Parent** (ancestors), **Descendant** (children), or **Both**
+4. Captured attributes become template tokens: `{{data_qa}}` and `{{#data_qa_present}}...{{/data_qa_present}}`
+
+### Custom Prompts
+
+Customize the markdown output templates to match your workflow:
+
+1. Go to **Settings > Prompts**
+2. Edit the Fix or Enhancement prompt templates
+
+**Available tokens:**
+- `{{issue.user_prompt}}` - Your description of the issue
+- `{{issue.page_url}}` - Current page URL
+- `{{elements_markdown}}` - Selected element(s) HTML and selectors
+- `{{console_errors_count}}` - Number of console errors captured
+- `{{console_errors_markdown}}` - Console errors with stack traces
+- `{{network_errors_count}}` - Number of failed network requests
+- `{{network_errors_table}}` - Network errors as a markdown table
+- `{{#console_errors_present}}...{{/console_errors_present}}` - Conditional block for console errors
+- `{{#network_errors_present}}...{{/network_errors_present}}` - Conditional block for network errors
+- Custom attribute tokens from your configuration
+
+Use the **Reset to Default** button to restore the original templates.
+
+### Connections (Direct Integrations)
+
+Send context directly to OpenCode or VSCode without copy/paste:
+
+1. Go to **Settings > Connections**
+2. **OpenCode**: Enter your OpenCode endpoint URL, select a session, enable auto-send
+3. **VSCode**: Extension auto-discovers running instances via port scanning, select an instance, enable auto-send
+4. When auto-send is enabled, context is sent automatically when you log an issue
+
+Connection cards show health indicators (green dot = connected) and can be enabled/disabled individually.
 
 ## Compatible Tools
 

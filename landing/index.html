@@ -48,7 +48,7 @@
         </h1>
         <p class="hero-subtitle">
           A Chrome Extension that captures frontend context and exports it as LLM-optimized markdown.
-          Works with Claude Code, Cursor, GitHub Copilot, OpenCode, and any AI coding assistant.
+          Works with OpenCode, GitHub Copilot, Claude Code, Cursor, and every other AI coding tool.
         </p>
         <div class="hero-cta">
           <a href="https://chromewebstore.google.com/detail/clankercontext/jenjdejjifbfmlbipddgoohgboapbjhi" class="btn btn-primary btn-lg" target="_blank" rel="noopener">
@@ -101,7 +101,7 @@
             </svg>
           </div>
           <h3>CSS Selectors</h3>
-          <p>Auto-generates robust CSS selectors using data-testid, ARIA labels, IDs, and smart path-based fallbacks.</p>
+          <p>Grabs robust CSS selectors using data-testid, ARIA labels, IDs, and smart path-based fallbacks.</p>
         </div>
 
         <div class="feature-card">
@@ -151,6 +151,39 @@
           <h3>Zero Footprint</h3>
           <p>Does nothing until you click "Start listening". Pause anytime. No background activity whatsoever.</p>
         </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+              <path d="M13 13l6 6"/>
+            </svg>
+          </div>
+          <h3>Quick Select</h3>
+          <p>Instantly copy element HTML and selectors to clipboard. No session needed, no issue to log.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+          </div>
+          <h3>Custom Prompts</h3>
+          <p>Edit prompt templates to match your workflow. Use Mustache tokens for dynamic content.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </div>
+          <h3>Direct Integrations</h3>
+          <p>Send context directly to OpenCode or VSCode. Auto-discover instances, auto-send on log.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -165,25 +198,27 @@
       </p>
       <div class="tools-grid">
         <div class="tool-card">
+          <span class="tool-name">OpenCode</span>
+          <span class="tool-badge">Direct Integration</span>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">VSCode / Copilot</span>
+          <a href="https://marketplace.visualstudio.com/items?itemName=clankercontext.clankercontext" class="tool-badge" target="_blank" rel="noopener">Direct Integration</a>
+        </div>
+        <div class="tool-card">
           <span class="tool-name">Claude Code</span>
         </div>
         <div class="tool-card">
           <span class="tool-name">Cursor</span>
         </div>
         <div class="tool-card">
-          <span class="tool-name">GitHub Copilot</span>
-        </div>
-        <div class="tool-card">
-          <span class="tool-name">OpenCode</span>
+          <span class="tool-name">Aider</span>
         </div>
         <div class="tool-card">
           <span class="tool-name">Kilo Code</span>
         </div>
         <div class="tool-card">
           <span class="tool-name">Anti Gravity</span>
-        </div>
-        <div class="tool-card">
-          <span class="tool-name">Aider</span>
         </div>
         <div class="tool-card">
           <span class="tool-name">Any AI Tool</span>
@@ -233,8 +268,8 @@
         </div>
         <div class="step">
           <div class="step-number">3</div>
-          <h3>Export context</h3>
-          <p>Copy the markdown to clipboard or download it. Paste it into your AI coding tool and watch the magic happen.</p>
+          <h3>Export or send</h3>
+          <p>Copy to clipboard, download as a file, or send directly to OpenCode/VSCode. Use Quick Select for instant element capture without logging.</p>
         </div>
       </div>
     </div>
@@ -312,6 +347,28 @@
             attributes (most reliable), then unique IDs, then ARIA labels, and finally falls back to
             path-based selectors using tag names and nth-child positions. This ensures AI tools get
             selectors that are both specific and resilient to minor DOM changes.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What's the difference between Quick Select and logging an issue?</summary>
+          <p>
+            <strong>Quick Select</strong> is lightweight—click the pointer icon, select element(s), and the
+            HTML and selectors are instantly copied to your clipboard. No session required, no issue stored.
+            <strong>Logging an issue</strong> creates a full context report that includes your description,
+            console errors with stack traces, failed network requests, and uses your custom prompt template.
+            Use Quick Select for quick reference; log issues for comprehensive debugging context.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I customize the markdown output?</summary>
+          <p>
+            Yes! Go to <strong>Settings &gt; Prompts</strong> to edit the Fix and Enhancement templates.
+            Templates use Mustache syntax with tokens like <code>{{issue.user_prompt}}</code>,
+            <code>{{elements_markdown}}</code>, <code>{{console_errors_markdown}}</code>, and conditional
+            blocks like <code>{{#console_errors_present}}...{{/console_errors_present}}</code>.
+            You can also configure custom HTML attributes in Settings to capture additional context.
           </p>
         </details>
       </div>
