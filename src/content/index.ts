@@ -338,8 +338,25 @@ function finishSelection(): void {
   const elementCount = elementsToSend.length;
   const isQuickSelect = quickSelectMode;
 
+  // Collect rects from selected highlights BEFORE cleanup
+  // These will be used to create confirmation highlights after cleanup
+  const rects: DOMRect[] = selectedHighlights.map((highlight) => {
+    return new DOMRect(
+      parseFloat(highlight.style.left),
+      parseFloat(highlight.style.top),
+      parseFloat(highlight.style.width),
+      parseFloat(highlight.style.height)
+    );
+  });
+
   // Clean up picker UI
   cleanupPicker();
+
+  // Create confirmation highlights for ALL selected elements
+  // This ensures consistent fade-out animation for all elements
+  rects.forEach((rect, index) => {
+    createConfirmationHighlight(rect, index);
+  });
 
   // Send to background
   if (isQuickSelect) {
@@ -577,12 +594,11 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
     selectedHighlights.push(highlight);
     updateTooltip();
   } else {
-    // Single-select: save rect for confirmation, then finish immediately
-    const rect = element.getBoundingClientRect();
-    const index = selectedElements.length - 1;
+    // Single-select: create highlight and add to array so finishSelection() handles
+    // the confirmation highlight creation (ensures consistent animation for all elements)
+    const highlight = createSelectedHighlight(element, selectedElements.length - 1);
+    selectedHighlights.push(highlight);
     finishSelection();
-    // Show confirmation highlight after picker is gone
-    createConfirmationHighlight(rect, index);
   }
 
   console.log('[ClankerContext] Element added to selection:', captured.selector);
