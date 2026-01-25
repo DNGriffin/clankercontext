@@ -50,7 +50,7 @@ export function Popup(): React.ReactElement {
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [iconToggle, setIconToggle] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
   // Send state
   const [sendingIssue, setSendingIssue] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function Popup(): React.ReactElement {
   // Show toast when auto-send fails
   useEffect(() => {
     if (state.autoSendError) {
-      setToast('Failed, check your active connection in settings');
+      setToast({ message: 'Failed, check your active connection in settings', type: 'error' });
       // Clear the error flag
       chrome.storage.session.remove('autoSendError');
     }
@@ -86,7 +86,9 @@ export function Popup(): React.ReactElement {
         const { quickSelectSuccess } = await chrome.storage.session.get('quickSelectSuccess');
         if (quickSelectSuccess) {
           await chrome.storage.session.remove('quickSelectSuccess');
-          // Show success toast (using a positive message instead of error style)
+          // Show success toast
+          setToast({ message: 'Copied to clipboard', type: 'success' });
+          // Also show checkmark on button if visible
           setActionSuccess({ id: 'quickSelect', type: 'copy' });
           setTimeout(() => setActionSuccess(null), 500);
         }
@@ -97,10 +99,11 @@ export function Popup(): React.ReactElement {
     checkQuickSelectSuccess();
   }, []);
 
-  // Auto-dismiss toast after 3 seconds
+  // Auto-dismiss toast (1.5s for success, 3s for errors)
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
+      const duration = toast.type === 'success' ? 1500 : 3000;
+      const timer = setTimeout(() => setToast(null), duration);
       return () => clearTimeout(timer);
     }
   }, [toast]);
@@ -311,7 +314,7 @@ export function Popup(): React.ReactElement {
       const activeConnection = response.connections.find((c) => c.isActive && c.enabled);
 
       if (!activeConnection) {
-        setToast('No active connection. Select one in Settings.');
+        setToast({ message: 'No active connection. Select one in Settings.', type: 'error' });
         return;
       }
 
@@ -326,7 +329,7 @@ export function Popup(): React.ReactElement {
         (activeConnection.type === 'vscode' && activeConnection.selectedInstanceId);
 
       if (!isReady) {
-        setToast('Select a session/instance for your active connection');
+        setToast({ message: 'Select a session/instance for your active connection', type: 'error' });
         setSendingIssue(null);
         return;
       }
@@ -361,10 +364,10 @@ export function Popup(): React.ReactElement {
         });
         await fetchState();
       } else {
-        setToast('Failed, check your connection in Settings');
+        setToast({ message: 'Failed, check your connection in Settings', type: 'error' });
       }
     } catch (error) {
-      setToast('Failed, check your connection in Settings');
+      setToast({ message: 'Failed, check your connection in Settings', type: 'error' });
     } finally {
       setSendingIssue(null);
     }
@@ -387,11 +390,12 @@ export function Popup(): React.ReactElement {
         error: null,
       }));
       // Show friendly message for known restrictions, otherwise show actual error
-      setToast(
-        message.includes('Cannot attach') || message.includes('restricted')
+      setToast({
+        message: message.includes('Cannot attach') || message.includes('restricted')
           ? 'Cannot listen to this page'
-          : message
-      );
+          : message,
+        type: 'error',
+      });
     }
   }, [fetchState]);
 
@@ -411,7 +415,7 @@ export function Popup(): React.ReactElement {
     } catch (error) {
       // Show toast for resume errors (likely restricted page)
       if (isPaused) {
-        setToast('Cannot listen to this page');
+        setToast({ message: 'Cannot listen to this page', type: 'error' });
       } else {
         setState((prev) => ({
           ...prev,
@@ -433,7 +437,7 @@ export function Popup(): React.ReactElement {
       // Close popup so user can select elements
       window.close();
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Failed to start quick select');
+      setToast({ message: error instanceof Error ? error.message : 'Failed to start quick select', type: 'error' });
     }
   }, []);
 
@@ -805,9 +809,19 @@ export function Popup(): React.ReactElement {
 
       {/* Toast notification */}
       {toast && (
-        <div className="fixed bottom-3 left-3 right-3 flex items-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm text-destructive-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{toast}</span>
+        <div
+          className={`fixed bottom-3 left-3 right-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2 ${
+            toast.type === 'error'
+              ? 'bg-destructive text-destructive-foreground'
+              : 'bg-muted text-muted-foreground'
+          }`}
+        >
+          {toast.type === 'error' ? (
+            <AlertCircle className="h-4 w-4 shrink-0" />
+          ) : (
+            <Check className="h-4 w-4 shrink-0" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
     </div>
