@@ -26,7 +26,8 @@ export type PopupToBackgroundMessage =
   | { type: 'GET_CUSTOM_ATTRIBUTES' }
   | { type: 'ADD_CUSTOM_ATTRIBUTE'; attribute: Omit<CustomAttribute, 'id' | 'createdAt' | 'updatedAt'> }
   | { type: 'UPDATE_CUSTOM_ATTRIBUTE'; attribute: CustomAttribute }
-  | { type: 'DELETE_CUSTOM_ATTRIBUTE'; attributeId: string };
+  | { type: 'DELETE_CUSTOM_ATTRIBUTE'; attributeId: string }
+  | { type: 'QUICK_SELECT' };
 
 // Background -> Popup responses
 export interface StateResponse {
@@ -96,10 +97,11 @@ export interface CustomAttributeMutationResponse {
 
 // Background -> Content messages
 export type BackgroundToContentMessage =
-  | { type: 'START_ELEMENT_PICKER'; issueType: IssueType; customAttributes?: CustomAttribute[] }
+  | { type: 'START_ELEMENT_PICKER'; issueType: IssueType; customAttributes?: CustomAttribute[]; quickSelect?: boolean }
   | { type: 'CANCEL_ELEMENT_PICKER' };
 
 // Content -> Background messages
 export type ContentToBackgroundMessage =
   | { type: 'ELEMENT_SELECTED'; elements: CapturedElement[]; pageUrl: string }
-  | { type: 'ELEMENT_PICKER_CANCELLED' };
+  | { type: 'ELEMENT_PICKER_CANCELLED' }
+  | { type: 'QUICK_SELECT_COMPLETE'; elements: CapturedElement[]; pageUrl: string };

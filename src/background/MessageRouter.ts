@@ -755,6 +755,47 @@ async function handlePopupMessage(
       }
     }
 
+    case 'QUICK_SELECT': {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      if (!tab?.id || !tab.url) {
+        throw new Error('No active tab found');
+      }
+
+      // Check if this is a restricted page
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('devtools://')) {
+        throw new Error('Cannot select elements on this page');
+      }
+
+      // Inject content script (no session required)
+      await injectContentScript(tab.id);
+
+      // Delay to ensure script is initialized
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Fetch custom attributes to pass to content script
+      const customAttributes = await storageManager.getCustomAttributes();
+
+      // Tell content script to start element picker in quick select mode
+      console.log('[MessageRouter] Sending START_ELEMENT_PICKER (quickSelect) to tab:', tab.id);
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'START_ELEMENT_PICKER',
+          issueType: 'enhancement', // Doesn't matter for quick select
+          customAttributes,
+          quickSelect: true,
+        } as BackgroundToContentMessage);
+      } catch (e) {
+        console.error('[MessageRouter] Failed to send START_ELEMENT_PICKER:', e);
+        throw new Error('Could not communicate with page. Try refreshing.');
+      }
+
+      return true;
+    }
+
     default:
       throw new Error(`Unknown message type: ${(message as { type: string }).type}`);
   }
@@ -765,8 +806,45 @@ async function handlePopupMessage(
  */
 async function handleContentMessage(
   message: ContentToBackgroundMessage,
-  _sender: chrome.runtime.MessageSender
+  sender: chrome.runtime.MessageSender
 ): Promise<boolean> {
+  // Handle QUICK_SELECT_COMPLETE first - doesn't require a session
+  if (message.type === 'QUICK_SELECT_COMPLETE') {
+    console.log('[MessageRouter] QUICK_SELECT_COMPLETE received with', message.elements.length, 'elements');
+
+    // Generate markdown using buildElementsMarkdown
+    const markdown = markdownExporter.buildElementsMarkdown(message.elements);
+
+    // Copy to clipboard via chrome.scripting.executeScript
+    const tabId = sender.tab?.id;
+    if (tabId) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: (text: string) => {
+            navigator.clipboard.writeText(text);
+          },
+          args: [markdown],
+        });
+        console.log('[MessageRouter] Quick select markdown copied to clipboard');
+
+        // Store success flag for popup to show toast
+        await chrome.storage.session.set({ quickSelectSuccess: true });
+
+        // Reopen popup to show success feedback
+        try {
+          await chrome.action.openPopup();
+        } catch (e) {
+          console.warn('[MessageRouter] Could not open popup:', e);
+        }
+      } catch (e) {
+        console.error('[MessageRouter] Failed to copy to clipboard:', e);
+      }
+    }
+
+    return true;
+  }
+
   const session = sessionStateMachine.getSession();
   if (!session) {
     console.warn('[MessageRouter] Received content message with no active session');

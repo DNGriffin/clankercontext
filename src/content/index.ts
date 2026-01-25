@@ -26,6 +26,9 @@ let selectedHighlights: HTMLDivElement[] = [];
 // Custom attributes config for element capture
 let customAttributesConfig: CustomAttribute[] = [];
 
+// Quick select mode - no issue creation, just copy to clipboard
+let quickSelectMode = false;
+
 /**
  * Initialize the content script.
  */
@@ -47,6 +50,7 @@ function handleMessage(
   switch (message.type) {
     case 'START_ELEMENT_PICKER':
       customAttributesConfig = message.customAttributes || [];
+      quickSelectMode = message.quickSelect === true;
       startElementPicker();
       sendResponse({ success: true });
       break;
@@ -134,6 +138,56 @@ function createSelectedHighlight(element: Element, index: number): HTMLDivElemen
 
   document.body.appendChild(highlight);
   return highlight;
+}
+
+/**
+ * Create a temporary confirmation highlight that auto-removes after delay.
+ * Used for single-select to show what was selected without blocking the user.
+ */
+function createConfirmationHighlight(rect: DOMRect, index: number): void {
+  const highlight = document.createElement('div');
+  highlight.className = 'clankercontext-confirmation-highlight';
+  highlight.style.cssText = `
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 2147483645 !important;
+    border: 3px solid #22c55e !important;
+    background: rgba(34, 197, 94, 0.15) !important;
+    top: ${rect.top}px !important;
+    left: ${rect.left}px !important;
+    width: ${rect.width}px !important;
+    height: ${rect.height}px !important;
+    transition: opacity 0.2s ease !important;
+  `;
+
+  // Add number badge
+  const badge = document.createElement('div');
+  badge.style.cssText = `
+    position: absolute !important;
+    top: -12px !important;
+    left: -12px !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: #22c55e !important;
+    color: white !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  `;
+  badge.textContent = String(index + 1);
+  highlight.appendChild(badge);
+
+  document.body.appendChild(highlight);
+
+  // Auto-remove after 500ms with fade
+  setTimeout(() => {
+    highlight.style.opacity = '0';
+    setTimeout(() => highlight.remove(), 200);
+  }, 500);
 }
 
 /**
@@ -232,18 +286,27 @@ function finishSelection(): void {
   // Save elements before cleanup (cleanup resets the array)
   const elementsToSend = [...selectedElements];
   const elementCount = elementsToSend.length;
+  const isQuickSelect = quickSelectMode;
 
   // Clean up picker UI
   cleanupPicker();
 
   // Send to background
-  chrome.runtime.sendMessage({
-    type: 'ELEMENT_SELECTED',
-    elements: elementsToSend,
-    pageUrl: window.location.href,
-  });
-
-  console.log('[ClankerContext] Elements selected:', elementCount);
+  if (isQuickSelect) {
+    chrome.runtime.sendMessage({
+      type: 'QUICK_SELECT_COMPLETE',
+      elements: elementsToSend,
+      pageUrl: window.location.href,
+    });
+    console.log('[ClankerContext] Quick select completed:', elementCount, 'elements');
+  } else {
+    chrome.runtime.sendMessage({
+      type: 'ELEMENT_SELECTED',
+      elements: elementsToSend,
+      pageUrl: window.location.href,
+    });
+    console.log('[ClankerContext] Elements selected:', elementCount);
+  }
 }
 
 /**
@@ -266,6 +329,7 @@ function cleanupPicker(): void {
   overlayElement = null;
   highlightElement = null;
   tooltipElement = null;
+  quickSelectMode = false;
 
   // Remove event listeners (must match capture phase)
   document.removeEventListener('mousemove', handlePickerMouseMove, true);
@@ -449,25 +513,27 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
   // Capture element data
   const captured = captureElement(element);
 
-  // Check if CTRL/CMD is held for multi-select
-  const isMultiSelect = event.ctrlKey || event.metaKey;
-
   // Add to selected elements
   selectedElements.push(captured);
 
-  // Create persistent highlight for this element
-  const highlight = createSelectedHighlight(element, selectedElements.length - 1);
-  selectedHighlights.push(highlight);
+  // Check if CTRL/CMD is held for multi-select
+  const isMultiSelect = event.ctrlKey || event.metaKey;
 
-  // Update tooltip
-  updateTooltip();
+  if (isMultiSelect) {
+    // Multi-select: create persistent highlight
+    const highlight = createSelectedHighlight(element, selectedElements.length - 1);
+    selectedHighlights.push(highlight);
+    updateTooltip();
+  } else {
+    // Single-select: save rect for confirmation, then finish immediately
+    const rect = element.getBoundingClientRect();
+    const index = selectedElements.length - 1;
+    finishSelection();
+    // Show confirmation highlight after picker is gone
+    createConfirmationHighlight(rect, index);
+  }
 
   console.log('[ClankerContext] Element added to selection:', captured.selector);
-
-  // If not multi-select (no CTRL held), finish selection
-  if (!isMultiSelect) {
-    finishSelection();
-  }
 }
 
 /**

@@ -18,6 +18,7 @@ import {
   Send,
   Check,
   CheckCheck,
+  MousePointer2,
 } from 'lucide-react';
 import { SettingsView } from './SettingsView';
 import { PromptEditView } from './PromptEditView';
@@ -77,6 +78,24 @@ export function Popup(): React.ReactElement {
       chrome.storage.session.remove('autoSendError');
     }
   }, [state.autoSendError]);
+
+  // Handle quick select success toast
+  useEffect(() => {
+    const checkQuickSelectSuccess = async () => {
+      try {
+        const { quickSelectSuccess } = await chrome.storage.session.get('quickSelectSuccess');
+        if (quickSelectSuccess) {
+          await chrome.storage.session.remove('quickSelectSuccess');
+          // Show success toast (using a positive message instead of error style)
+          setActionSuccess({ id: 'quickSelect', type: 'copy' });
+          setTimeout(() => setActionSuccess(null), 500);
+        }
+      } catch (e) {
+        console.error('[Popup] Failed to check quick select success:', e);
+      }
+    };
+    checkQuickSelectSuccess();
+  }, []);
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
@@ -404,6 +423,20 @@ export function Popup(): React.ReactElement {
     }
   }, [isPaused, fetchState]);
 
+  // Quick Select - select elements and copy to clipboard without creating an issue
+  const handleQuickSelect = useCallback(async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'QUICK_SELECT' });
+      if (response?.error) {
+        throw new Error(response.error);
+      }
+      // Close popup so user can select elements
+      window.close();
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Failed to start quick select');
+    }
+  }, []);
+
   // Show loading spinner on initial load
   if (state.loading && !state.session && state.issues.length === 0) {
     return (
@@ -632,6 +665,20 @@ export function Popup(): React.ReactElement {
           >
             <Wrench className="h-4 w-4 mr-2" />
             Fix
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleQuickSelect}
+            className="h-9 w-9 p-0"
+            disabled={state.loading || isPaused}
+            title="Quick select element(s) to clipboard"
+          >
+            {actionSuccess?.id === 'quickSelect' ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <MousePointer2 className="h-4 w-4" />
+            )}
           </Button>
         </div>
       )}

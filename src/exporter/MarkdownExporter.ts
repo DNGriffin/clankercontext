@@ -129,7 +129,7 @@ class MarkdownExporter {
     return tokens;
   }
 
-  private buildElementsMarkdown(elements: CapturedElement[]): string {
+  public buildElementsMarkdown(elements: CapturedElement[]): string {
     if (elements.length === 0) return '';
 
     const lines: string[] = [];
