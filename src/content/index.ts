@@ -74,7 +74,7 @@ function handleMessage(
  */
 function getModifierKeyName(): string {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-  return isMac ? 'Cmd' : 'Ctrl';
+  return isMac ? 'CMD' : 'CTRL';
 }
 
 /**
@@ -88,9 +88,9 @@ function updateTooltip(): void {
   let text: string;
 
   if (count === 0) {
-    text = `Click to select element. Hold ${modKey}+click to select multiple. Press Esc to cancel.`;
+    text = `Click to select an element. Hold ${modKey}+CLICK to select multiple. Press ESC to cancel.`;
   } else {
-    text = `${count} element${count > 1 ? 's' : ''} selected. ${modKey}+click to add more, click to add and finish, or press Enter to finish.`;
+    text = `${count} element${count > 1 ? 's' : ''} selected. ${modKey}+CLICK to add more, click to add and finish, or press ENTER.`;
   }
 
   tooltipElement.textContent = text;
