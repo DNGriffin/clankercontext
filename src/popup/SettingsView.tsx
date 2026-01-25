@@ -438,7 +438,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
 
   return (
     <div className="flex flex-col h-full p-3">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-2">
         <Button
           variant="ghost"
           size="sm"
@@ -451,14 +451,14 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive mb-3">
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive mb-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      <section className="mb-4">
-        <div className="flex items-center justify-between mb-2">
+      <section className="mb-3">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Connections
           </span>
@@ -487,11 +487,11 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
 
         {connectionsOpen ? (
           loading ? (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-2">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : connections.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
               <p className="text-sm text-muted-foreground">
                 No connections configured
               </p>
@@ -525,7 +525,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </section>
 
       <section className="mb-2">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Prompts
           </span>
@@ -543,11 +543,11 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
 
         {promptsOpen ? (
           promptTemplatesLoading ? (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-2">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {promptTemplates.map((template) => {
                 const lastUpdated = template.updatedAt
                   ? new Date(template.updatedAt).toLocaleString()
@@ -580,7 +580,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </section>
 
       <section className="mb-2">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Behavior
           </span>
@@ -598,11 +598,11 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
 
         {behaviorOpen ? (
           autoCopyLoading ? (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-2">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">Auto Copy Context</span>
@@ -632,7 +632,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </section>
 
       <section className="mb-2">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Custom Attributes
           </span>
@@ -661,11 +661,11 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
 
         {customAttributesOpen ? (
           customAttributesLoading ? (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-2">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : customAttributes.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
               <p className="text-sm text-muted-foreground">
                 No custom attributes configured
               </p>
