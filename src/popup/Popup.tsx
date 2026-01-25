@@ -624,9 +624,47 @@ export function Popup(): React.ReactElement {
         </div>
       )}
 
+      {/* Action buttons - side by side */}
+      <div className="flex gap-2 mb-3">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setView('enhancement')}
+            className="flex-1 h-9"
+            disabled={state.loading || isPaused || !state.session}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Modify
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setView('fix')}
+            className="flex-1 h-9"
+            disabled={state.loading || isPaused || !state.session}
+          >
+            <Wrench className="h-4 w-4 mr-2" />
+            Fix
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleQuickSelect}
+            className="h-9 w-9 p-0"
+            disabled={state.loading}
+            title="Quick select element(s) to clipboard"
+          >
+            {actionSuccess?.id === 'quickSelect' ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <MousePointer2 className="h-4 w-4" />
+            )}
+          </Button>
+      </div>
+
       {/* Start listening - shown when no session */}
       {!state.session && (
-        <div className="flex flex-col items-center gap-3 py-6">
+        <div className="flex flex-col items-center gap-3 py-4">
           <p className="text-sm text-muted-foreground text-center">
             Start listening to capture errors and log issues.
           </p>
@@ -643,46 +681,6 @@ export function Popup(): React.ReactElement {
               <Play className="h-4 w-4 mr-2" />
             )}
             Start listening
-          </Button>
-        </div>
-      )}
-
-      {/* Action buttons - side by side */}
-      {state.session && (
-        <div className="flex gap-2 mb-3">
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setView('enhancement')}
-            className="flex-1 h-9"
-            disabled={state.loading || isPaused}
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Modify
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setView('fix')}
-            className="flex-1 h-9"
-            disabled={state.loading || isPaused}
-          >
-            <Wrench className="h-4 w-4 mr-2" />
-            Fix
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleQuickSelect}
-            className="h-9 w-9 p-0"
-            disabled={state.loading || isPaused}
-            title="Quick select element(s) to clipboard"
-          >
-            {actionSuccess?.id === 'quickSelect' ? (
-              <Check className="h-4 w-4 text-green-500" />
-            ) : (
-              <MousePointer2 className="h-4 w-4" />
-            )}
           </Button>
         </div>
       )}
