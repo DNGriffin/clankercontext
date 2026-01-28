@@ -552,7 +552,15 @@ export function Popup(): React.ReactElement {
               className="h-10 w-10 rounded cursor-pointer"
             />
           </a>
-          <span className="text-base font-semibold">ClankerContext</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold tracking-wide">CLANKERCONTEXT</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`status-dot ${state.session ? (isPaused ? 'paused' : 'active') : 'offline'}`} />
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                {state.session ? (isPaused ? 'PAUSED' : 'MONITORING') : 'OFFLINE'}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -701,20 +709,22 @@ export function Popup(): React.ReactElement {
               </Button>
             </div>
           </div>
-          <div className="flex flex-col border rounded-md divide-y">
+          <div className="flex flex-col border border-border rounded-sm divide-y divide-border">
             {state.issues.map((issue) => (
               <div
                 key={issue.id}
-                className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/50"
+                className={`flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/30 border-l-2 ${
+                  issue.type === 'enhancement' ? 'border-l-primary' : 'border-l-warning'
+                }`}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   {issue.type === 'enhancement' ? (
                     <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
                   ) : (
-                    <Wrench className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                    <Wrench className="h-3.5 w-3.5 text-warning shrink-0" />
                   )}
                   <span
-                    className={`text-sm truncate ${issue.exportedAt ? 'line-through text-muted-foreground' : ''}`}
+                    className={`text-xs truncate ${issue.exportedAt ? 'line-through text-muted-foreground' : ''}`}
                     title={issue.userPrompt || issue.name || 'Unnamed issue'}
                   >
                     {issue.name || 'Unnamed issue'}
@@ -788,18 +798,23 @@ export function Popup(): React.ReactElement {
       {/* Toast notification */}
       {toast && (
         <div
-          className={`fixed bottom-3 left-3 right-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2 ${
+          className={`fixed bottom-3 left-3 right-3 flex items-center gap-2 rounded-sm px-3 py-2 text-xs shadow-lg animate-in fade-in slide-in-from-bottom-2 bg-card border ${
             toast.type === 'error'
-              ? 'bg-destructive text-destructive-foreground'
-              : 'bg-muted text-muted-foreground'
+              ? 'border-destructive/50 text-destructive'
+              : 'border-success/50 text-success'
           }`}
+          style={{
+            boxShadow: toast.type === 'error'
+              ? '0 0 12px oklch(57.71% 0.215 27.33 / 0.3)'
+              : '0 0 12px oklch(70% 0.18 145 / 0.3)'
+          }}
         >
           {toast.type === 'error' ? (
             <AlertCircle className="h-4 w-4 shrink-0" />
           ) : (
             <Check className="h-4 w-4 shrink-0" />
           )}
-          <span>{toast.message}</span>
+          <span className="uppercase tracking-wide">{toast.message}</span>
         </div>
       )}
     </div>

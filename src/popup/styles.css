@@ -1,61 +1,64 @@
+/* JetBrains Mono for technical/robotic feel */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
 /* Custom theme using Tailwind v4 @theme directive */
 @theme {
-  /* Neutral gray palette */
-  --color-background: oklch(100% 0 0);
-  --color-foreground: oklch(14.08% 0.004 285.82);
+  /* Dark theme palette */
+  --color-background: oklch(8% 0.01 240);
+  --color-foreground: oklch(92% 0.01 240);
 
-  /* Card colors */
-  --color-card: oklch(100% 0 0);
-  --color-card-foreground: oklch(14.08% 0.004 285.82);
+  /* Card colors - elevated dark */
+  --color-card: oklch(12% 0.015 240);
+  --color-card-foreground: oklch(92% 0.01 240);
 
   /* Popover colors */
-  --color-popover: oklch(100% 0 0);
-  --color-popover-foreground: oklch(14.08% 0.004 285.82);
+  --color-popover: oklch(12% 0.015 240);
+  --color-popover-foreground: oklch(92% 0.01 240);
 
-  /* Primary - blue accent */
-  --color-primary: oklch(58.8% 0.158 241.96);
-  --color-primary-foreground: oklch(98.51% 0.002 247.84);
+  /* Primary - bright cyan accent */
+  --color-primary: oklch(72% 0.15 195);
+  --color-primary-foreground: oklch(8% 0.01 240);
 
-  /* Secondary - subtle gray */
-  --color-secondary: oklch(96.08% 0.006 285.88);
-  --color-secondary-foreground: oklch(21.03% 0.006 285.88);
+  /* Secondary - dark elevated */
+  --color-secondary: oklch(18% 0.02 240);
+  --color-secondary-foreground: oklch(85% 0.01 240);
 
   /* Muted */
-  --color-muted: oklch(96.08% 0.006 285.88);
-  --color-muted-foreground: oklch(55.1% 0.016 285.94);
+  --color-muted: oklch(15% 0.015 240);
+  --color-muted-foreground: oklch(60% 0.02 240);
 
   /* Accent */
-  --color-accent: oklch(96.08% 0.006 285.88);
-  --color-accent-foreground: oklch(21.03% 0.006 285.88);
+  --color-accent: oklch(18% 0.02 240);
+  --color-accent-foreground: oklch(92% 0.01 240);
 
   /* Destructive - red */
   --color-destructive: oklch(57.71% 0.215 27.33);
-  --color-destructive-foreground: oklch(98.51% 0.002 247.84);
+  --color-destructive-foreground: oklch(98% 0.01 240);
 
   /* Success - green */
-  --color-success: oklch(62.8% 0.18 145);
-  --color-success-foreground: oklch(100% 0 0);
+  --color-success: oklch(70% 0.18 145);
+  --color-success-foreground: oklch(8% 0.01 240);
 
   /* Warning - amber */
   --color-warning: oklch(79.5% 0.16 75);
-  --color-warning-foreground: oklch(25% 0 0);
+  --color-warning-foreground: oklch(15% 0 0);
 
-  /* Border and input */
-  --color-border: oklch(89.94% 0.006 285.88);
-  --color-input: oklch(89.94% 0.006 285.88);
-  --color-ring: oklch(58.8% 0.158 241.96);
+  /* Border and input - subtle cyan tint */
+  --color-border: oklch(25% 0.02 195);
+  --color-input: oklch(18% 0.02 240);
+  --color-ring: oklch(72% 0.15 195);
 
-  /* Border radius */
-  --radius-lg: 0.5rem;
-  --radius-md: calc(var(--radius-lg) - 2px);
-  --radius-sm: calc(var(--radius-md) - 2px);
+  /* Border radius - sharp corners for robotic feel */
+  --radius-lg: 2px;
+  --radius-md: 2px;
+  --radius-sm: 2px;
 
-  /* Fonts */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  /* Fonts - monospace for technical feel */
+  --font-sans: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
 }
 
 /* Base styles */
@@ -98,4 +101,83 @@ body.prompt-edit #root {
 /* Focus ring utility */
 .focus-ring {
   @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Animations for robotic/futuristic feel */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px oklch(72% 0.15 195 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px oklch(72% 0.15 195 / 0.6);
+  }
+}
+
+@keyframes status-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes data-stream {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-status-blink {
+  animation: status-blink 1.5s ease-in-out infinite;
+}
+
+.animate-data-stream {
+  animation: data-stream 3s linear infinite;
+}
+
+/* Input focus glow styles */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--color-primary), 0 0 8px oklch(72% 0.15 195 / 0.2);
+  border-color: var(--color-primary);
+}
+
+/* Technical text utilities */
+.text-technical {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10px;
+}
+
+/* Status indicator dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.active {
+  background: oklch(72% 0.15 195);
+  box-shadow: 0 0 8px oklch(72% 0.15 195 / 0.6);
+  animation: status-blink 1.5s ease-in-out infinite;
+}
+
+.status-dot.paused {
+  background: oklch(79.5% 0.16 75);
+  box-shadow: 0 0 6px oklch(79.5% 0.16 75 / 0.4);
+}
+
+.status-dot.offline {
+  background: oklch(45% 0.02 240);
 }

@@ -458,9 +458,9 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       )}
 
       <section className="mb-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Connections
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em]">
+            CONNECTIONS
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -505,7 +505,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col border rounded-md divide-y">
+            <div className="flex flex-col border border-border rounded-sm divide-y divide-border">
               {connections.map((conn) => (
                 <ConnectionItem
                   key={conn.id}
@@ -525,9 +525,9 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </section>
 
       <section className="mb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Prompts
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em]">
+            PROMPTS
           </span>
           <Button
             variant="ghost"
@@ -558,7 +558,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
                 return (
                   <div
                     key={template.type}
-                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-sm border border-border px-3 py-2"
                   >
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{template.label} prompt</span>
@@ -580,9 +580,9 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </section>
 
       <section className="mb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Behavior
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em]">
+            BEHAVIOR
           </span>
           <Button
             variant="ghost"
@@ -603,7 +603,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+              <div className="flex items-center justify-between gap-3 rounded-sm border border-border px-3 py-2">
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">Auto Copy Context</span>
                   <span className="text-[11px] text-muted-foreground">
@@ -632,9 +632,9 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       </section>
 
       <section className="mb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Custom Attributes
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em]">
+            CUSTOM ATTRIBUTES
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -682,7 +682,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col border rounded-md divide-y">
+            <div className="flex flex-col border border-border rounded-sm divide-y divide-border">
               {customAttributes.map((attr) => (
                 <CustomAttributeItem
                   key={attr.id}
