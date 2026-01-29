@@ -99,3 +99,43 @@ body.prompt-edit #root {
 .focus-ring {
   @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
 }
+
+/* Robot speech animations */
+@keyframes float-up-fade {
+  0% {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0.2;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.animate-zzz-1 {
+  animation: float-up-fade 1.5s ease-in-out infinite;
+  animation-delay: 0ms;
+}
+
+.animate-zzz-2 {
+  animation: float-up-fade 1.5s ease-in-out infinite;
+  animation-delay: 400ms;
+}
+
+.animate-zzz-3 {
+  animation: float-up-fade 1.5s ease-in-out infinite;
+  animation-delay: 800ms;
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}

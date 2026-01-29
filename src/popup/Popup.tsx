@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { SettingsView } from './SettingsView';
 import { PromptEditView } from './PromptEditView';
+import { RobotSpeech } from './components/RobotSpeech';
 
 interface PopupState {
   loading: boolean;
@@ -552,7 +553,10 @@ export function Popup(): React.ReactElement {
               className="h-10 w-10 rounded cursor-pointer"
             />
           </a>
-          <span className="text-base font-semibold">ClankerContext</span>
+          <div className="flex flex-col">
+            <span className="text-base font-semibold">ClankerContext</span>
+            <RobotSpeech isSleeping={!state.session || isPaused} />
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button
