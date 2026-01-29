@@ -29,6 +29,9 @@ let customAttributesConfig: CustomAttribute[] = [];
 // Quick select mode - no issue creation, just copy to clipboard
 let quickSelectMode = false;
 
+// Track last click position for cursor-positioned toast
+let lastClickPosition: { x: number; y: number } = { x: 0, y: 0 };
+
 /**
  * Initialize the content script.
  */
@@ -141,37 +144,59 @@ function createSelectedHighlight(element: Element, index: number): HTMLDivElemen
 }
 
 /**
- * Show a toast notification on the page.
+ * Show a toast notification on the page near the cursor position.
  * Used for quick select to provide immediate feedback without reopening popup.
  */
 function showCopiedToast(): void {
   const toast = document.createElement('div');
   toast.id = 'clankercontext-toast';
+
+  // Calculate position with viewport boundary detection
+  const offsetX = 16;
+  const offsetY = 16;
+  const toastWidth = 160;
+  const toastHeight = 44;
+
+  let left = lastClickPosition.x + offsetX;
+  let top = lastClickPosition.y + offsetY;
+
+  // Boundary checks
+  if (left + toastWidth > window.innerWidth - 16) {
+    left = lastClickPosition.x - toastWidth - offsetX;
+  }
+  if (top + toastHeight > window.innerHeight - 16) {
+    top = lastClickPosition.y - toastHeight - offsetY;
+  }
+
   toast.style.cssText = `
     position: fixed !important;
-    bottom: 24px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    top: ${top}px !important;
+    left: ${left}px !important;
     z-index: 2147483647 !important;
-    padding: 12px 20px !important;
-    background: #1a1a1a !important;
+    padding: 10px 16px !important;
+    background: rgba(26, 26, 26, 0.95) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
     color: white !important;
     border-radius: 8px !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    font-size: 14px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-    opacity: 1 !important;
-    transition: opacity 0.2s ease !important;
+    opacity: 0 !important;
+    transform: scale(0.92) translateY(4px) !important;
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out !important;
+    pointer-events: none !important;
   `;
 
   // Green checkmark icon
   const checkmark = document.createElement('span');
   checkmark.style.cssText = `
     color: #22c55e !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
     line-height: 1 !important;
   `;
   checkmark.textContent = '✓';
@@ -183,11 +208,18 @@ function showCopiedToast(): void {
   toast.appendChild(text);
   document.body.appendChild(toast);
 
-  // Auto-dismiss after 1.5s with fade
+  // Trigger entry animation
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'scale(1) translateY(0)';
+  });
+
+  // Auto-dismiss after 1.2s with float-up fade
   setTimeout(() => {
     toast.style.opacity = '0';
-    setTimeout(() => toast.remove(), 200);
-  }, 1500);
+    toast.style.transform = 'scale(0.96) translateY(-8px)';
+    setTimeout(() => toast.remove(), 150);
+  }, 1200);
 }
 
 /**
@@ -587,6 +619,9 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
 
   // Check if CTRL/CMD is held for multi-select
   const isMultiSelect = event.ctrlKey || event.metaKey;
+
+  // Save cursor position for toast positioning (used for both single and multi-select)
+  lastClickPosition = { x: event.clientX, y: event.clientY };
 
   if (isMultiSelect) {
     // Multi-select: create persistent highlight
