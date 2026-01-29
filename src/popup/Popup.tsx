@@ -564,34 +564,32 @@ export function Popup(): React.ReactElement {
           >
             <Settings className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={state.session ? handleTogglePause : handleStartListening}
+            disabled={togglingPause || (!state.session && state.loading)}
+            title={!state.session ? 'Start listening' : isPaused ? 'Resume' : 'Pause'}
+          >
+            {togglingPause || (!state.session && state.loading) ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : !state.session || isPaused ? (
+              <Play className="h-4 w-4" />
+            ) : (
+              <Pause className="h-4 w-4" />
+            )}
+          </Button>
           {state.session && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={handleTogglePause}
-                disabled={togglingPause}
-                title={isPaused ? 'Resume' : 'Pause'}
-              >
-                {togglingPause ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isPaused ? (
-                  <Play className="h-4 w-4" />
-                ) : (
-                  <Pause className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                onClick={handleClearSession}
-                title="End session"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+              onClick={handleClearSession}
+              title="End session"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           )}
         </div>
       </header>
@@ -641,29 +639,6 @@ export function Popup(): React.ReactElement {
             )}
           </Button>
       </div>
-
-      {/* Start listening - shown when no session */}
-      {!state.session && (
-        <div className="flex flex-col items-center gap-3 py-4">
-          <p className="text-sm text-muted-foreground text-center">
-            Start listening to capture errors and log issues.
-          </p>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleStartListening}
-            className="h-9 px-4"
-            disabled={state.loading}
-          >
-            {state.loading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Play className="h-4 w-4 mr-2" />
-            )}
-            Start listening
-          </Button>
-        </div>
-      )}
 
       {/* Compact issue list - show even without active session to preserve issues after reload */}
       {state.issues.length > 0 && (

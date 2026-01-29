@@ -45,7 +45,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
   // Custom attributes state
   const [customAttributes, setCustomAttributes] = useState<CustomAttribute[]>([]);
   const [customAttributesLoading, setCustomAttributesLoading] = useState(true);
-  const [customAttributesOpen, setCustomAttributesOpen] = useState(true);
+  const [customAttributesOpen, setCustomAttributesOpen] = useState(false);
   const [isAddingAttribute, setIsAddingAttribute] = useState(false);
   const [editingAttribute, setEditingAttribute] = useState<CustomAttribute | null>(null);
 
