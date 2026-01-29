@@ -646,7 +646,7 @@ export function Popup(): React.ReactElement {
 
       {/* Compact issue list - show even without active session to preserve issues after reload */}
       {state.issues.length > 0 && (
-        <div className="flex flex-col gap-1 mb-3 mt-2">
+        <div className="flex flex-col gap-1 mt-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Issues ({state.issues.length})
