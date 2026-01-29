@@ -15,6 +15,8 @@ const AWAKE_PHRASES = [
   'Ready to help!',
   'Watching closely...',
   'Scanning for issues',
+  'Send patches!',
+  'Clanker clanker clanker!', 
 ];
 
 interface RobotSpeechProps {
