@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import type { Connection, CustomAttribute, IssueType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
 import type { ConnectionsResponse, ConnectionMutationResponse, CustomAttributesResponse, CustomAttributeMutationResponse, TestConnectionResponse } from '@/shared/messages';
 import { storageManager } from '@/background/StorageManager';
@@ -447,7 +447,16 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-base font-semibold">Settings</h2>
+        <h2 className="text-base font-semibold flex-grow">Settings</h2>
+        <a
+          href="https://github.com/DNGriffin/clankercontext/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+        >
+          Report Issue
+          <ExternalLink className="h-3 w-3" />
+        </a>
       </div>
 
       {error && (
