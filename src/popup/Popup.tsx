@@ -603,7 +603,7 @@ export function Popup(): React.ReactElement {
       )}
 
       {/* Action buttons - side by side */}
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2">
           <Button
             variant="default"
             size="sm"
