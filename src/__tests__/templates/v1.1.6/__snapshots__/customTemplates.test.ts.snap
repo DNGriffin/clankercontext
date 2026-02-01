@@ -1,0 +1,382 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Custom Templates v1.1.6 - Kitchen Sink Snapshot Tests should match snapshot for enhancement issue: kitchen-sink-enhancement 1`] = `
+"# Enhancement Report
+
+## Issue Metadata
+- **ID:** issue-enh-456
+- **Name:** Add Dark Mode Toggle
+- **Type:** enhancement
+- **Label:** Modify
+- **Title:** Enhancement
+- **Page URL:** https://example.com/dashboard
+- **Timestamp:** 2024-02-01T00:00:00.000Z
+
+## User Request
+**Raw prompt:** Add a dark mode toggle button to the header
+
+**Blockquote format:**
+> Add a dark mode toggle button to the header
+
+## Elements Overview
+- **Count:** 1 element(s)
+- **First element selector:** header.site-header
+
+### First Element (Code Block)
+\`\`\`html
+<header class="site-header">
+<nav>...</nav>
+</header>
+\`\`\`
+**CSS Selector:** \`header.site-header\`
+
+### First Element HTML (Plain)
+\`\`\`html
+<header class="site-header">
+<nav>...</nav>
+</header>
+\`\`\`
+
+### All Elements (Full Markdown)
+\`\`\`html
+<header class="site-header">
+<nav>...</nav>
+</header>
+\`\`\`
+
+**CSS Selector:** \`header.site-header\`
+
+### All Elements HTML Only
+\`\`\`html
+<header class="site-header">
+<nav>...</nav>
+</header>
+\`\`\`
+
+### All Selectors Only
+**CSS Selector:** \`header.site-header\`
+
+
+
+
+
+
+
+
+
+
+
+---
+*Generated at 2024-02-01T00:00:00.000Z*
+"
+`;
+
+exports[`Custom Templates v1.1.6 - Kitchen Sink Snapshot Tests should match snapshot for kitchen sink with all data: kitchen-sink-all-data 1`] = `
+"# Bug Fix Report
+
+## Issue Metadata
+- **ID:** issue-fix-123
+- **Name:** Login Button Bug
+- **Type:** fix
+- **Label:** Fix
+- **Title:** Bug Fix
+- **Page URL:** https://example.com/login
+- **Timestamp:** 2024-02-01T00:00:00.000Z
+
+## User Request
+**Raw prompt:** The login button does not respond when clicked
+
+**Blockquote format:**
+> The login button does not respond when clicked
+
+## Elements Overview
+- **Count:** 1 element(s)
+- **First element selector:** #login-btn
+
+### First Element (Code Block)
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+**CSS Selector:** \`#login-btn\`
+
+### First Element HTML (Plain)
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+### All Elements (Full Markdown)
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+**CSS Selector:** \`#login-btn\`
+
+### All Elements HTML Only
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+### All Selectors Only
+**CSS Selector:** \`#login-btn\`
+
+
+## Console Errors
+**2 error(s) detected**
+
+### Error
+\`\`\`
+Uncaught TypeError: Cannot read property 'click' of undefined
+\`\`\`
+
+**Stack trace:**
+\`\`\`
+at handleClick (app.js:42:15)
+    at HTMLButtonElement.<anonymous> (app.js:50:10)
+\`\`\`
+**Source:** \`https://example.com/app.js:42\`
+
+### Error
+\`\`\`
+Error: Network request failed
+\`\`\`
+
+**Stack trace:**
+\`\`\`
+at fetchData (api.js:15:5)
+    at async loadUser (user.js:8:3)
+\`\`\`
+**Source:** \`https://example.com/api.js:15\`
+
+
+
+## Network Errors
+**3 failed request(s)**
+
+| Status | Method | URL |
+|--------|--------|-----|
+| 500 | POST | \`https://api.example.com/auth/login\` |
+| 404 | GET | \`https://api.example.com/users/profile\` |
+| CORS/Network | GET | \`https://cdn.example.com/assets/missing.js\` |
+
+
+
+## Error Summary
+This issue has associated errors that may help diagnose the problem.
+
+
+
+## Custom Attribute: data-testid
+**Value:** login-button
+
+
+
+
+---
+*Generated at 2024-02-01T00:00:00.000Z*
+"
+`;
+
+exports[`Custom Templates v1.1.6 - Kitchen Sink Snapshot Tests should match snapshot for kitchen sink with multiple elements: kitchen-sink-multi-elements 1`] = `
+"# Bug Fix Report
+
+## Issue Metadata
+- **ID:** issue-multi-789
+- **Name:** Form Validation Issue
+- **Type:** fix
+- **Label:** Fix
+- **Title:** Bug Fix
+- **Page URL:** https://example.com/signup
+- **Timestamp:** 2024-02-01T00:00:00.000Z
+
+## User Request
+**Raw prompt:** Form fields are not validating correctly
+
+**Blockquote format:**
+> Form fields are not validating correctly
+
+## Elements Overview
+- **Count:** 3 element(s)
+- **First element selector:** #email
+
+### First Element (Code Block)
+\`\`\`html
+<input type="email" id="email" class="form-input" />
+\`\`\`
+**CSS Selector:** \`#email\`
+
+### First Element HTML (Plain)
+\`\`\`html
+<input type="email" id="email" class="form-input" />
+\`\`\`
+
+### All Elements (Full Markdown)
+### Element 1
+
+\`\`\`html
+<input type="email" id="email" class="form-input" />
+\`\`\`
+
+**CSS Selector:** \`#email\`
+
+### Element 2
+
+\`\`\`html
+<input type="password" id="password" class="form-input" />
+\`\`\`
+
+**CSS Selector:** \`#password\`
+
+### Element 3
+
+\`\`\`html
+<button type="submit" class="submit-btn">Submit</button>
+\`\`\`
+
+**CSS Selector:** \`button.submit-btn\`
+
+### All Elements HTML Only
+### Element 1
+
+\`\`\`html
+<input type="email" id="email" class="form-input" />
+\`\`\`
+
+### Element 2
+
+\`\`\`html
+<input type="password" id="password" class="form-input" />
+\`\`\`
+
+### Element 3
+
+\`\`\`html
+<button type="submit" class="submit-btn">Submit</button>
+\`\`\`
+
+### All Selectors Only
+- Element 1: \`#email\`
+- Element 2: \`#password\`
+- Element 3: \`button.submit-btn\`
+
+
+## Console Errors
+**2 error(s) detected**
+
+### Error
+\`\`\`
+Uncaught TypeError: Cannot read property 'click' of undefined
+\`\`\`
+
+**Stack trace:**
+\`\`\`
+at handleClick (app.js:42:15)
+    at HTMLButtonElement.<anonymous> (app.js:50:10)
+\`\`\`
+**Source:** \`https://example.com/app.js:42\`
+
+### Error
+\`\`\`
+Error: Network request failed
+\`\`\`
+
+**Stack trace:**
+\`\`\`
+at fetchData (api.js:15:5)
+    at async loadUser (user.js:8:3)
+\`\`\`
+**Source:** \`https://example.com/api.js:15\`
+
+
+
+## Network Errors
+**3 failed request(s)**
+
+| Status | Method | URL |
+|--------|--------|-----|
+| 500 | POST | \`https://api.example.com/auth/login\` |
+| 404 | GET | \`https://api.example.com/users/profile\` |
+| CORS/Network | GET | \`https://cdn.example.com/assets/missing.js\` |
+
+
+
+## Error Summary
+This issue has associated errors that may help diagnose the problem.
+
+
+
+## Custom Attribute: data-testid
+**Value:** email-input
+
+
+
+
+---
+*Generated at 2024-02-01T00:00:00.000Z*
+"
+`;
+
+exports[`Custom Templates v1.1.6 - Kitchen Sink Snapshot Tests should match snapshot for kitchen sink with no errors: kitchen-sink-no-errors 1`] = `
+"# Bug Fix Report
+
+## Issue Metadata
+- **ID:** issue-fix-123
+- **Name:** Login Button Bug
+- **Type:** fix
+- **Label:** Fix
+- **Title:** Bug Fix
+- **Page URL:** https://example.com/login
+- **Timestamp:** 2024-02-01T00:00:00.000Z
+
+## User Request
+**Raw prompt:** The login button does not respond when clicked
+
+**Blockquote format:**
+> The login button does not respond when clicked
+
+## Elements Overview
+- **Count:** 1 element(s)
+- **First element selector:** #login-btn
+
+### First Element (Code Block)
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+**CSS Selector:** \`#login-btn\`
+
+### First Element HTML (Plain)
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+### All Elements (Full Markdown)
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+**CSS Selector:** \`#login-btn\`
+
+### All Elements HTML Only
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+### All Selectors Only
+**CSS Selector:** \`#login-btn\`
+
+
+
+
+
+
+
+
+## Custom Attribute: data-testid
+**Value:** login-button
+
+
+
+
+---
+*Generated at 2024-02-01T00:00:00.000Z*
+"
+`;
