@@ -25,6 +25,7 @@ let tooltipElement: HTMLDivElement | null = null;
 // Multi-select state
 let selectedElements: CapturedElement[] = [];
 let selectedHighlights: HTMLDivElement[] = [];
+let selectedDOMElements: Element[] = [];
 
 // Custom attributes config for element capture
 let customAttributesConfig: CustomAttribute[] = [];
@@ -81,6 +82,18 @@ function handleMessage(
 function getModifierKeyName(): string {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   return isMac ? 'CMD' : 'CTRL';
+}
+
+/**
+ * Re-number badges on selected highlights after an element is removed.
+ */
+function updateHighlightBadges(): void {
+  selectedHighlights.forEach((highlight, index) => {
+    const badge = highlight.querySelector('div');
+    if (badge) {
+      badge.textContent = String(index + 1);
+    }
+  });
 }
 
 /**
@@ -483,6 +496,7 @@ function cleanupPicker(): void {
 
   // Reset state
   selectedElements = [];
+  selectedDOMElements = [];
   overlayElement = null;
   highlightElement = null;
   tooltipElement = null;
@@ -520,6 +534,7 @@ function startElementPicker(): void {
   // Reset multi-select state
   selectedElements = [];
   selectedHighlights = [];
+  selectedDOMElements = [];
 
   elementPickerActive = true;
 
@@ -667,12 +682,6 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  // Capture element data (async to allow React source extraction)
-  const captured = await captureElement(element);
-
-  // Add to selected elements
-  selectedElements.push(captured);
-
   // Check if CTRL/CMD is held for multi-select
   const isMultiSelect = event.ctrlKey || event.metaKey;
 
@@ -680,19 +689,40 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
   lastClickPosition = { x: event.clientX, y: event.clientY };
 
   if (isMultiSelect) {
-    // Multi-select: create persistent highlight
-    const highlight = createSelectedHighlight(element, selectedElements.length - 1);
-    selectedHighlights.push(highlight);
-    updateTooltip();
+    // Check if element is already selected
+    const existingIndex = selectedDOMElements.indexOf(element);
+
+    if (existingIndex !== -1) {
+      // Deselect: remove from all arrays
+      selectedElements.splice(existingIndex, 1);
+      selectedDOMElements.splice(existingIndex, 1);
+      const [removedHighlight] = selectedHighlights.splice(existingIndex, 1);
+      removedHighlight.remove();
+
+      // Re-number remaining badges
+      updateHighlightBadges();
+      updateTooltip();
+      console.log('[ClankerContext] Element deselected');
+    } else {
+      // Select: capture and add to arrays
+      const captured = await captureElement(element);
+      selectedElements.push(captured);
+      selectedDOMElements.push(element);
+      const highlight = createSelectedHighlight(element, selectedElements.length - 1);
+      selectedHighlights.push(highlight);
+      updateTooltip();
+      console.log('[ClankerContext] Element added to selection:', captured.selector);
+    }
   } else {
-    // Single-select: create highlight and add to array so finishSelection() handles
-    // the confirmation highlight creation (ensures consistent animation for all elements)
+    // Single-select: capture element, create highlight and finish
+    const captured = await captureElement(element);
+    selectedElements.push(captured);
+    selectedDOMElements.push(element);
     const highlight = createSelectedHighlight(element, selectedElements.length - 1);
     selectedHighlights.push(highlight);
     finishSelection();
+    console.log('[ClankerContext] Element selected:', captured.selector);
   }
-
-  console.log('[ClankerContext] Element added to selection:', captured.selector);
 }
 
 /**
