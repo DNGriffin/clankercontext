@@ -34,6 +34,35 @@ async function buildContentScript() {
   });
 }
 
+// React extractor runs in MAIN world - needs separate IIFE build
+async function buildReactExtractor() {
+  await build({
+    configFile: false,
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
+      },
+    },
+    build: {
+      outDir: 'dist',
+      emptyOutDir: false, // Don't clear - main build already ran
+      lib: {
+        entry: resolve(__dirname, 'src/content/react-extractor.ts'),
+        name: 'ClankerContextReactExtractor',
+        formats: ['iife'],
+        fileName: () => 'react-extractor.js',
+      },
+      rollupOptions: {
+        output: {
+          extend: true,
+        },
+      },
+      minify: 'esbuild',
+      target: 'esnext',
+    },
+  });
+}
+
 export default defineConfig({
   base: './',
   plugins: [
@@ -64,10 +93,12 @@ export default defineConfig({
       },
     },
     {
-      name: 'build-content-script',
+      name: 'build-content-scripts',
       closeBundle: async () => {
         // Build content script as IIFE after main build
         await buildContentScript();
+        // Build React extractor as IIFE (runs in MAIN world)
+        await buildReactExtractor();
       },
     },
   ],

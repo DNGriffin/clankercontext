@@ -8,10 +8,13 @@
  */
 
 import type { BackgroundToContentMessage } from '@/shared/messages';
-import type { CapturedCustomAttribute, CapturedElement, CustomAttribute } from '@/shared/types';
+import type { CapturedCustomAttribute, CapturedElement, CustomAttribute, ReactSourceInfo } from '@/shared/types';
 import { normalizeAttributeName } from '@/shared/utils';
 import { getBestSelector } from './SelectorGenerator';
 import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
+
+// Timeout for React source extraction (ms)
+const REACT_SOURCE_TIMEOUT = 500;
 
 // State
 let elementPickerActive = false;
@@ -273,6 +276,55 @@ function createConfirmationHighlight(rect: DOMRect, index: number): void {
 }
 
 /**
+ * Request React source info from the main world script via postMessage.
+ * The main world script has access to React internals via window.__REACT_DEVTOOLS_GLOBAL_HOOK__.
+ */
+async function getReactSourceFromMainWorld(element: Element): Promise<ReactSourceInfo | null> {
+  return new Promise((resolve) => {
+    const rect = element.getBoundingClientRect();
+    const elementId = crypto.randomUUID();
+
+    console.log('[ClankerContext] Requesting React source for element:', element);
+    console.log('[ClankerContext] Element rect:', rect);
+
+    const handler = (event: MessageEvent) => {
+      // Only accept messages from the same frame
+      if (event.source !== window) return;
+
+      if (
+        event.data?.type === 'CLANKER_REACT_SOURCE_RESULT' &&
+        event.data.elementId === elementId
+      ) {
+        console.log('[ClankerContext] Received React source response:', event.data.reactSource);
+        window.removeEventListener('message', handler);
+        resolve(event.data.reactSource);
+      }
+    };
+
+    window.addEventListener('message', handler);
+
+    // Send request to main world script
+    window.postMessage(
+      {
+        type: 'CLANKER_GET_REACT_SOURCE',
+        elementId,
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      },
+      '*'
+    );
+    console.log('[ClankerContext] Sent React source request with elementId:', elementId);
+
+    // Timeout fallback - don't block if React extractor isn't available
+    setTimeout(() => {
+      console.log('[ClankerContext] React source request timed out');
+      window.removeEventListener('message', handler);
+      resolve(null);
+    }, REACT_SOURCE_TIMEOUT);
+  });
+}
+
+/**
  * Find a custom attribute value on or near an element.
  * Searches based on the configured direction: parent, descendant, or both.
  */
@@ -334,9 +386,9 @@ function findCustomAttribute(
 }
 
 /**
- * Capture element data (HTML and selector).
+ * Capture element data (HTML, selector, custom attributes, and React source).
  */
-function captureElement(element: Element): CapturedElement {
+async function captureElement(element: Element): Promise<CapturedElement> {
   let html = element.outerHTML;
   if (html.length > DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) {
     html = html.substring(0, DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) + '<!-- truncated -->';
@@ -349,10 +401,14 @@ function captureElement(element: Element): CapturedElement {
     .map((config) => findCustomAttribute(element, config))
     .filter((attr): attr is CapturedCustomAttribute => attr !== null);
 
+  // Try to get React source info from main world
+  const reactSource = await getReactSourceFromMainWorld(element);
+
   return {
     html,
     selector,
     customAttributes: customAttributes.length > 0 ? customAttributes : undefined,
+    reactSource: reactSource ?? undefined,
   };
 }
 
@@ -611,8 +667,8 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  // Capture element data
-  const captured = captureElement(element);
+  // Capture element data (async to allow React source extraction)
+  const captured = await captureElement(element);
 
   // Add to selected elements
   selectedElements.push(captured);

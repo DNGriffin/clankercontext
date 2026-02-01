@@ -72,6 +72,9 @@ class MarkdownExporter {
     const consoleErrorsMarkdown = this.buildConsoleErrorsMarkdown(consoleErrors);
     const networkErrorsTable = this.buildNetworkErrorsTable(networkErrors);
 
+    // React source info tokens
+    const reactSourceTokens = this.buildReactSourceTokens(issue.elements);
+
     return {
       'issue.id': issue.id,
       'issue.name': issueName,
@@ -98,6 +101,55 @@ class MarkdownExporter {
       network_errors_table: networkErrorsTable,
       errors_present: hasErrors,
       ...this.buildCustomAttributeTokens(issue.elements),
+      ...reactSourceTokens,
+    };
+  }
+
+  /**
+   * Build template context tokens for React source info.
+   * Uses the first element's React source if available.
+   */
+  private buildReactSourceTokens(elements: CapturedElement[]): Record<string, string | boolean | number> {
+    // Find the first element with React source info
+    const firstReactSource = elements.find((el) => el.reactSource)?.reactSource;
+
+    if (!firstReactSource) {
+      return {
+        react_source_present: false,
+        'react.component_name': '',
+        'react.file_path': '',
+        'react.line_number': '',
+        'react.column_number': '',
+        'react.component_stack': '',
+        'react.file_location': '',
+      };
+    }
+
+    // Build file location string (e.g., "components/Button.tsx:42")
+    let fileLocation = '';
+    if (firstReactSource.filePath) {
+      fileLocation = firstReactSource.filePath;
+      if (firstReactSource.lineNumber) {
+        fileLocation += `:${firstReactSource.lineNumber}`;
+        if (firstReactSource.columnNumber) {
+          fileLocation += `:${firstReactSource.columnNumber}`;
+        }
+      }
+    }
+
+    // Build component stack string
+    const componentStackStr = firstReactSource.componentStack.length > 0
+      ? firstReactSource.componentStack.map((name) => `  → ${name}`).join('\n')
+      : '';
+
+    return {
+      react_source_present: true,
+      'react.component_name': firstReactSource.componentName || '',
+      'react.file_path': firstReactSource.filePath || '',
+      'react.line_number': firstReactSource.lineNumber?.toString() || '',
+      'react.column_number': firstReactSource.columnNumber?.toString() || '',
+      'react.component_stack': componentStackStr,
+      'react.file_location': fileLocation,
     };
   }
 

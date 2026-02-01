@@ -24,6 +24,18 @@ The user selected the following element(s) as the focus of their request:
 
 These element(s) may be the source of the bug, or closely related to it. Inspect their attributes, event handlers, and parent/child relationships.
 
+{{#react_source_present}}
+## React Component Location
+
+This element is rendered by a React component. Use this to quickly locate the source code:
+
+- **Component:** \`{{react.component_name}}\`
+- **File:** \`{{react.file_location}}\`
+
+**Component Stack (nearest to root):**
+{{react.component_stack}}
+{{/react_source_present}}
+
 {{#console_errors_present}}
 ## Console Errors
 
@@ -71,6 +83,18 @@ The user selected the following element(s) as the focus of their request:
 {{elements_markdown}}
 
 Use these element(s) as reference for where to apply the enhancement. You may need to modify these elements, their parents, or add sibling elements.
+
+{{#react_source_present}}
+## React Component Location
+
+This element is rendered by a React component. Use this to quickly locate the source code:
+
+- **Component:** \`{{react.component_name}}\`
+- **File:** \`{{react.file_location}}\`
+
+**Component Stack (nearest to root):**
+{{react.component_stack}}
+{{/react_source_present}}
 
 {{#console_errors_present}}
 ## Console Errors

@@ -49,8 +49,26 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
 /**
  * Inject content script into a tab if not already injected.
+ * Also injects the React extractor script in the MAIN world for React source extraction.
  */
 async function injectContentScript(tabId: number): Promise<void> {
+  // Always try to inject the React extractor in MAIN world
+  // It doesn't persist across page navigations, so we need to inject it each time
+  // Multiple injections are safe (just adds redundant listeners)
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['react-extractor.js'],
+      world: 'MAIN',
+    });
+    console.log('[MessageRouter] React extractor injected in MAIN world');
+  } catch (e) {
+    // React extractor injection failure is non-fatal
+    // The extension will still work, just without React source info
+    console.warn('[MessageRouter] React extractor injection failed (non-fatal):', e);
+  }
+
+  // Content script can be skipped if already injected
   if (injectedTabs.has(tabId)) {
     console.log('[MessageRouter] Content script already injected in tab:', tabId);
     return;
@@ -58,6 +76,7 @@ async function injectContentScript(tabId: number): Promise<void> {
 
   try {
     console.log('[MessageRouter] Injecting content script into tab:', tabId);
+
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ['content.js'],
