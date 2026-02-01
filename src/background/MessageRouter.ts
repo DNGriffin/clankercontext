@@ -831,8 +831,11 @@ async function handleContentMessage(
   if (message.type === 'QUICK_SELECT_COMPLETE') {
     console.log('[MessageRouter] QUICK_SELECT_COMPLETE received with', message.elements.length, 'elements');
 
-    // Generate markdown using buildElementsMarkdown
-    const markdown = markdownExporter.buildElementsMarkdown(message.elements);
+    // Generate markdown using the customizable quick select template
+    const markdown = await markdownExporter.buildQuickSelectMarkdown(
+      message.elements,
+      message.pageUrl
+    );
 
     // Copy to clipboard via chrome.scripting.executeScript
     const tabId = sender.tab?.id;

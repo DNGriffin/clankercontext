@@ -1,8 +1,9 @@
-import type { IssueType } from '@/shared/types';
+import type { TemplateType } from '@/shared/types';
 
-export const PROMPT_TEMPLATE_LABELS: Record<IssueType, string> = {
+export const PROMPT_TEMPLATE_LABELS: Record<TemplateType, string> = {
   fix: 'Fix',
   enhancement: 'Modify',
+  quickSelect: 'Quick Select',
 };
 
 const FIX_TEMPLATE = `# Bug Fix
@@ -125,7 +126,26 @@ The user selected the following element(s) as the focus of their request. Use th
 4. Test that existing functionality is not broken
 `;
 
-export const DEFAULT_PROMPT_TEMPLATES: Record<IssueType, string> = {
+const QUICK_SELECT_TEMPLATE = `{{#each elements}}
+## Element {{@number}}
+
+\`\`\`html
+{{element.html}}
+\`\`\`
+
+**CSS Selector:** \`{{element.selector}}\`
+
+{{#element.react_source_present}}
+**React Component:** \`{{element.react.component_name}}\` at \`{{element.react.file_location}}\`
+
+**Component Stack:**
+{{element.react.component_stack}}
+{{/element.react_source_present}}
+{{/each}}
+`;
+
+export const DEFAULT_PROMPT_TEMPLATES: Record<TemplateType, string> = {
   fix: FIX_TEMPLATE,
   enhancement: ENHANCEMENT_TEMPLATE,
+  quickSelect: QUICK_SELECT_TEMPLATE,
 };

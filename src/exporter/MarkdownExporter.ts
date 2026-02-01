@@ -229,6 +229,30 @@ class MarkdownExporter {
     return tokens;
   }
 
+  /**
+   * Build markdown for quick select mode using the customizable template.
+   */
+  async buildQuickSelectMarkdown(elements: CapturedElement[], pageUrl: string): Promise<string> {
+    const storedTemplate = await storageManager.getPromptTemplate('quickSelect');
+    const template = storedTemplate?.content || DEFAULT_PROMPT_TEMPLATES.quickSelect;
+    const context = this.buildQuickSelectContext(elements, pageUrl);
+    return renderTemplate(template, context);
+  }
+
+  /**
+   * Build template context for quick select mode.
+   * Only includes element-related tokens (no console/network errors, no issue info).
+   */
+  private buildQuickSelectContext(elements: CapturedElement[], pageUrl: string): TemplateContextWithArrays {
+    return {
+      page_url: pageUrl,
+      elements_count: elements.length,
+      elements_multiple: elements.length > 1,
+      elements: this.buildElementsArray(elements),
+      ...this.buildCustomAttributeTokens(elements),
+    };
+  }
+
   public buildElementsMarkdown(elements: CapturedElement[]): string {
     if (elements.length === 0) return '';
 

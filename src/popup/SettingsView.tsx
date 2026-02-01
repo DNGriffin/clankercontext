@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
-import type { Connection, CustomAttribute, IssueType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
+import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Sparkles, Wrench, MousePointer2, Copy } from 'lucide-react';
+import type { Connection, CustomAttribute, TemplateType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
 import type { ConnectionsResponse, ConnectionMutationResponse, CustomAttributesResponse, CustomAttributeMutationResponse, TestConnectionResponse } from '@/shared/messages';
 import { storageManager } from '@/background/StorageManager';
 import { PROMPT_TEMPLATE_LABELS } from '@/prompts/templates';
@@ -14,17 +14,17 @@ import { CustomAttributeForm } from './components/CustomAttributeForm';
 
 interface SettingsViewProps {
   onBack: () => void;
-  onEditPrompt: (type: IssueType) => void;
+  onEditPrompt: (type: TemplateType) => void;
 }
 
 interface PromptTemplateState {
-  type: IssueType;
+  type: TemplateType;
   label: string;
   isCustom: boolean;
   updatedAt?: number;
 }
 
-const PROMPT_TEMPLATE_ORDER: IssueType[] = ['enhancement', 'fix'];
+const PROMPT_TEMPLATE_ORDER: TemplateType[] = ['enhancement', 'fix', 'quickSelect'];
 
 export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React.ReactElement {
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -561,13 +561,17 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
                 const lastUpdated = template.updatedAt
                   ? new Date(template.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                   : null;
+                const Icon = template.type === 'enhancement' ? Sparkles
+                  : template.type === 'fix' ? Wrench
+                  : MousePointer2;
                 return (
                   <div
                     key={template.type}
                     className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/50"
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-sm font-medium w-16 shrink-0">{template.label}</span>
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="text-sm font-medium whitespace-nowrap">{template.label}</span>
                       <span className={`text-xs px-1.5 py-0.5 rounded ${template.isCustom ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
                         {template.isCustom ? (lastUpdated ? `Custom - ${lastUpdated}` : 'Custom') : 'Default'}
                       </span>
@@ -614,6 +618,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
             <div className="flex flex-col border rounded-md divide-y">
               <div className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/50">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Copy className="h-3.5 w-3.5 shrink-0" />
                   <span className="text-sm font-medium">Auto Copy Context</span>
                   <span className="text-xs text-muted-foreground hidden sm:inline">on log</span>
                 </div>

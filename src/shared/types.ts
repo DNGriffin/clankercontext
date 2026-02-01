@@ -4,6 +4,9 @@ export type SessionState = 'idle' | 'monitoring' | 'selecting_element';
 // Issue Types
 export type IssueType = 'enhancement' | 'fix';
 
+// Template Types (extends IssueType to include quick select)
+export type TemplateType = IssueType | 'quickSelect';
+
 // Custom Attribute Search Direction
 export type AttributeSearchDirection = 'parent' | 'descendant' | 'both';
 
@@ -35,7 +38,7 @@ export interface ReactSourceInfo {
 
 // Prompt template stored in IndexedDB
 export interface PromptTemplate {
-  type: IssueType;
+  type: TemplateType;
   content: string;
   updatedAt: number;
 }

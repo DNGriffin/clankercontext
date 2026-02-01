@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { Issue, IssueType, MonitoringSession } from '@/shared/types';
+import type { Issue, TemplateType, MonitoringSession } from '@/shared/types';
 import type { ConnectionsResponse, ExportResponse, SendToOpenCodeResponse, SendToVSCodeResponse, StateResponse } from '@/shared/messages';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,7 +46,7 @@ export function Popup(): React.ReactElement {
 
   const [view, setView] = useState<ViewState>('main');
   const [prompt, setPrompt] = useState('');
-  const [editingPromptType, setEditingPromptType] = useState<IssueType>('fix');
+  const [editingPromptType, setEditingPromptType] = useState<TemplateType>('fix');
   const [actionSuccess, setActionSuccess] = useState<{ id: string; type: 'copy' | 'download' | 'send' | 'sent' } | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);

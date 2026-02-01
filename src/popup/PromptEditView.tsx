@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Loader2, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { IssueType, PromptTemplate } from '@/shared/types';
+import type { TemplateType, PromptTemplate } from '@/shared/types';
 import { storageManager } from '@/background/StorageManager';
 import { DEFAULT_PROMPT_TEMPLATES, PROMPT_TEMPLATE_LABELS } from '@/prompts/templates';
 
 interface PromptEditViewProps {
-  type: IssueType;
+  type: TemplateType;
   onBack: () => void;
 }
 
