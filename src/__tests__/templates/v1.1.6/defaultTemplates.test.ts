@@ -1,13 +1,15 @@
 /**
  * v1.1.6 - Default Template Tests
  *
- * Tests DEFAULT_PROMPT_TEMPLATES.fix and DEFAULT_PROMPT_TEMPLATES.enhancement
- * to ensure they render correctly with various data scenarios.
+ * Tests backward compatibility: verifies that the v1.1.6 template format
+ * (using {{elements_markdown}} token) continues to render correctly.
+ *
+ * These tests use FROZEN template strings to ensure backward compatibility
+ * is maintained even when DEFAULT_PROMPT_TEMPLATES evolves.
  *
  * DO NOT MODIFY once a new version folder is created.
  */
 
-import { DEFAULT_PROMPT_TEMPLATES } from '@/prompts/templates';
 import { renderTemplate } from '@/exporter/PromptTemplateRenderer';
 import {
   mockFixIssue,
@@ -18,6 +20,8 @@ import {
   mockSingleNetworkError,
   mockNetworkErrors,
   mockEmptyNetworkErrors,
+  V1_1_6_FIX_TEMPLATE,
+  V1_1_6_ENHANCEMENT_TEMPLATE,
 } from './__mocks__/testData';
 import type { Issue, ConsoleError, NetworkError, CapturedElement } from '@/shared/types';
 
@@ -198,7 +202,7 @@ describe('Default Templates v1.1.6', () => {
   describe('Fix Template', () => {
     it('should render fix template with all data present', () => {
       const context = buildTestContext(mockFixIssue, mockConsoleErrors, mockNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       // Check main sections are present
       expect(result).toContain('# Bug Fix');
@@ -225,7 +229,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should render fix template without console errors', () => {
       const context = buildTestContext(mockFixIssue, mockEmptyConsoleErrors, mockNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toContain('# Bug Fix');
       expect(result).not.toContain('## Console Errors');
@@ -235,7 +239,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should render fix template without network errors', () => {
       const context = buildTestContext(mockFixIssue, mockConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toContain('# Bug Fix');
       expect(result).toContain('## Console Errors');
@@ -245,7 +249,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should render fix template without any errors', () => {
       const context = buildTestContext(mockFixIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toContain('# Bug Fix');
       expect(result).not.toContain('## Console Errors');
@@ -255,7 +259,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should include element HTML in code block', () => {
       const context = buildTestContext(mockFixIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toContain('```html');
       expect(result).toContain('<button id="login-btn" class="btn primary">Login</button>');
@@ -264,7 +268,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should include CSS selector', () => {
       const context = buildTestContext(mockFixIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toContain('**CSS Selector:** `#login-btn`');
     });
@@ -273,7 +277,7 @@ describe('Default Templates v1.1.6', () => {
   describe('Enhancement Template', () => {
     it('should render enhancement template with all data present', () => {
       const context = buildTestContext(mockEnhancementIssue, mockConsoleErrors, mockNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.enhancement, context);
+      const result = renderTemplate(V1_1_6_ENHANCEMENT_TEMPLATE, context);
 
       // Check main sections
       expect(result).toContain('# Enhancement');
@@ -293,7 +297,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should render enhancement template without errors', () => {
       const context = buildTestContext(mockEnhancementIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.enhancement, context);
+      const result = renderTemplate(V1_1_6_ENHANCEMENT_TEMPLATE, context);
 
       expect(result).toContain('# Enhancement');
       expect(result).not.toContain('## Console Errors');
@@ -303,7 +307,7 @@ describe('Default Templates v1.1.6', () => {
 
     it('should include suggested approach for enhancement', () => {
       const context = buildTestContext(mockEnhancementIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.enhancement, context);
+      const result = renderTemplate(V1_1_6_ENHANCEMENT_TEMPLATE, context);
 
       expect(result).toContain('**Suggested approach:**');
       expect(result).toContain('Locate the target element in the codebase');
@@ -313,44 +317,44 @@ describe('Default Templates v1.1.6', () => {
 
   describe('Template Structure Validation', () => {
     it('fix template should have expected structure', () => {
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('# Bug Fix');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{issue.user_prompt}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{issue.page_url}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{elements_markdown}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{#console_errors_present}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{/console_errors_present}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{#network_errors_present}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.fix).toContain('{{/network_errors_present}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('# Bug Fix');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{issue.user_prompt}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{issue.page_url}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{elements_markdown}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{#console_errors_present}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{/console_errors_present}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{#network_errors_present}}');
+      expect(V1_1_6_FIX_TEMPLATE).toContain('{{/network_errors_present}}');
     });
 
     it('enhancement template should have expected structure', () => {
-      expect(DEFAULT_PROMPT_TEMPLATES.enhancement).toContain('# Enhancement');
-      expect(DEFAULT_PROMPT_TEMPLATES.enhancement).toContain('{{issue.user_prompt}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.enhancement).toContain('{{issue.page_url}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.enhancement).toContain('{{elements_markdown}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.enhancement).toContain('{{#console_errors_present}}');
-      expect(DEFAULT_PROMPT_TEMPLATES.enhancement).toContain('{{/console_errors_present}}');
+      expect(V1_1_6_ENHANCEMENT_TEMPLATE).toContain('# Enhancement');
+      expect(V1_1_6_ENHANCEMENT_TEMPLATE).toContain('{{issue.user_prompt}}');
+      expect(V1_1_6_ENHANCEMENT_TEMPLATE).toContain('{{issue.page_url}}');
+      expect(V1_1_6_ENHANCEMENT_TEMPLATE).toContain('{{elements_markdown}}');
+      expect(V1_1_6_ENHANCEMENT_TEMPLATE).toContain('{{#console_errors_present}}');
+      expect(V1_1_6_ENHANCEMENT_TEMPLATE).toContain('{{/console_errors_present}}');
     });
   });
 
   describe('Snapshot Tests', () => {
     it('should match snapshot for fix template with errors', () => {
       const context = buildTestContext(mockFixIssue, mockSingleConsoleError, mockSingleNetworkError);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toMatchSnapshot('fix-template-with-errors');
     });
 
     it('should match snapshot for fix template without errors', () => {
       const context = buildTestContext(mockFixIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.fix, context);
+      const result = renderTemplate(V1_1_6_FIX_TEMPLATE, context);
 
       expect(result).toMatchSnapshot('fix-template-without-errors');
     });
 
     it('should match snapshot for enhancement template', () => {
       const context = buildTestContext(mockEnhancementIssue, mockEmptyConsoleErrors, mockEmptyNetworkErrors);
-      const result = renderTemplate(DEFAULT_PROMPT_TEMPLATES.enhancement, context);
+      const result = renderTemplate(V1_1_6_ENHANCEMENT_TEMPLATE, context);
 
       expect(result).toMatchSnapshot('enhancement-template');
     });
