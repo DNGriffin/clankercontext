@@ -1,7 +1,7 @@
 import type { CapturedElement, ConsoleError, Issue, NetworkError, ReactSourceInfo } from '@/shared/types';
 import { storageManager } from '@/background/StorageManager';
 import { DEFAULT_PROMPT_TEMPLATES } from '@/prompts/templates';
-import { renderTemplate, type TemplateContext } from '@/exporter/PromptTemplateRenderer';
+import { renderTemplate, type TemplateContextWithArrays, type TemplateArrayItem } from '@/exporter/PromptTemplateRenderer';
 
 /**
  * Markdown exporter for generating LLM-friendly issue reports.
@@ -46,7 +46,7 @@ class MarkdownExporter {
     issue: Issue,
     consoleErrors: ConsoleError[],
     networkErrors: NetworkError[]
-  ): TemplateContext {
+  ): TemplateContextWithArrays {
     const isEnhancement = issue.type === 'enhancement';
     const issueName = issue.name || 'Untitled';
     const elementCount = issue.elements.length;
@@ -71,9 +71,6 @@ class MarkdownExporter {
 
     const consoleErrorsMarkdown = this.buildConsoleErrorsMarkdown(consoleErrors);
     const networkErrorsTable = this.buildNetworkErrorsTable(networkErrors);
-
-    // React source info tokens
-    const reactSourceTokens = this.buildReactSourceTokens(issue.elements);
 
     return {
       'issue.id': issue.id,
@@ -100,8 +97,8 @@ class MarkdownExporter {
       network_errors_present: networkErrors.length > 0,
       network_errors_table: networkErrorsTable,
       errors_present: hasErrors,
+      elements: this.buildElementsArray(issue.elements),
       ...this.buildCustomAttributeTokens(issue.elements),
-      ...reactSourceTokens,
     };
   }
 
@@ -123,15 +120,32 @@ class MarkdownExporter {
   }
 
   /**
-   * Build template context tokens for React source info.
-   * Uses the first element's React source if available.
+   * Build an array of element objects for {{#each elements}} iteration.
+   * Each element includes HTML, selector, and React source tokens.
    */
-  private buildReactSourceTokens(elements: CapturedElement[]): Record<string, string | boolean | number> {
-    // Find the first element with React source info
-    const firstReactSource = elements.find((el) => el.reactSource)?.reactSource;
+  private buildElementsArray(elements: CapturedElement[]): TemplateArrayItem[] {
+    return elements.map((element) => {
+      const reactTokens = this.buildSingleElementReactTokens(element);
+      const customAttrTokens = this.buildSingleElementCustomAttributes(element);
+
+      return {
+        html: this.formatHTML(element.html),
+        html_raw: element.html,
+        selector: element.selector,
+        ...reactTokens,
+        ...customAttrTokens,
+      };
+    });
+  }
+
+  /**
+   * Build React source tokens for a single element.
+   */
+  private buildSingleElementReactTokens(element: CapturedElement): Record<string, string | boolean> {
+    const reactSource = element.reactSource;
 
     // Return empty if no source OR if it looks minified
-    if (!firstReactSource || this.isLikelyMinified(firstReactSource)) {
+    if (!reactSource || this.isLikelyMinified(reactSource)) {
       return {
         react_source_present: false,
         'react.component_name': '',
@@ -145,30 +159,46 @@ class MarkdownExporter {
 
     // Build file location string (e.g., "components/Button.tsx:42")
     let fileLocation = '';
-    if (firstReactSource.filePath) {
-      fileLocation = firstReactSource.filePath;
-      if (firstReactSource.lineNumber) {
-        fileLocation += `:${firstReactSource.lineNumber}`;
-        if (firstReactSource.columnNumber) {
-          fileLocation += `:${firstReactSource.columnNumber}`;
+    if (reactSource.filePath) {
+      fileLocation = reactSource.filePath;
+      if (reactSource.lineNumber) {
+        fileLocation += `:${reactSource.lineNumber}`;
+        if (reactSource.columnNumber) {
+          fileLocation += `:${reactSource.columnNumber}`;
         }
       }
     }
 
     // Build component stack string
-    const componentStackStr = firstReactSource.componentStack.length > 0
-      ? firstReactSource.componentStack.map((name) => `  → ${name}`).join('\n')
+    const componentStackStr = reactSource.componentStack.length > 0
+      ? reactSource.componentStack.map((name) => `  → ${name}`).join('\n')
       : '';
 
     return {
       react_source_present: true,
-      'react.component_name': firstReactSource.componentName || '',
-      'react.file_path': firstReactSource.filePath || '',
-      'react.line_number': firstReactSource.lineNumber?.toString() || '',
-      'react.column_number': firstReactSource.columnNumber?.toString() || '',
+      'react.component_name': reactSource.componentName || '',
+      'react.file_path': reactSource.filePath || '',
+      'react.line_number': reactSource.lineNumber?.toString() || '',
+      'react.column_number': reactSource.columnNumber?.toString() || '',
       'react.component_stack': componentStackStr,
       'react.file_location': fileLocation,
     };
+  }
+
+  /**
+   * Build custom attribute tokens for a single element.
+   */
+  private buildSingleElementCustomAttributes(element: CapturedElement): Record<string, string | boolean> {
+    const tokens: Record<string, string | boolean> = {};
+
+    if (element.customAttributes) {
+      for (const attr of element.customAttributes) {
+        tokens[attr.tokenName] = attr.value;
+        tokens[`${attr.tokenName}_present`] = true;
+      }
+    }
+
+    return tokens;
   }
 
   /**
