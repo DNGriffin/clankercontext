@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
@@ -22,12 +24,15 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.0.260",
+    "@types/jest": "^29.5.12",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.23",
+    "jest": "^29.7.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
+    "ts-jest": "^29.1.2",
     "typescript": "^5.3.3",
     "vite": "^5.0.12"
   }
