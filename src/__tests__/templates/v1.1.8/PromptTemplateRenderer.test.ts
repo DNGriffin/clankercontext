@@ -10,7 +10,7 @@
  * DO NOT MODIFY once a new version folder is created.
  */
 
-import { renderTemplate, type TemplateContext, type TemplateContextWithArrays, type TemplateArrayItem } from '@/exporter/PromptTemplateRenderer';
+import { renderTemplate, type TemplateContext, type TemplateContextWithArrays } from '@/exporter/PromptTemplateRenderer';
 
 describe('PromptTemplateRenderer v1.1.8', () => {
   // ============================================================================
