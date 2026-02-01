@@ -1,0 +1,104 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Quick Select Templates v1.1.8 Snapshot Tests should match snapshot for elements without React source: quick-select-no-react 1`] = `
+"
+## Element 1
+
+\`\`\`html
+<a href="/about" class="nav-link">About</a>
+\`\`\`
+
+**CSS Selector:** \`a.nav-link\`
+
+
+
+## Element 2
+
+\`\`\`html
+<span class="logo">MyApp</span>
+\`\`\`
+
+**CSS Selector:** \`span.logo\`
+
+
+
+"
+`;
+
+exports[`Quick Select Templates v1.1.8 Snapshot Tests should match snapshot for multiple elements with React source: quick-select-multiple-with-react 1`] = `
+"
+## Element 1
+
+\`\`\`html
+<input type="text" id="username" placeholder="Username" />
+\`\`\`
+
+**CSS Selector:** \`#username\`
+
+
+**React Component:** \`UsernameInput\` at \`src/components/forms/UsernameInput.tsx:12:4\`
+
+**Component Stack:**
+  → App
+  → LoginForm
+  → UsernameInput
+
+
+## Element 2
+
+\`\`\`html
+<input type="password" id="password" placeholder="Password" />
+\`\`\`
+
+**CSS Selector:** \`#password\`
+
+
+**React Component:** \`PasswordInput\` at \`src/components/forms/PasswordInput.tsx:18:4\`
+
+**Component Stack:**
+  → App
+  → LoginForm
+  → PasswordInput
+
+
+## Element 3
+
+\`\`\`html
+<button type="submit" class="login-btn">Log In</button>
+\`\`\`
+
+**CSS Selector:** \`button.login-btn\`
+
+
+**React Component:** \`LoginButton\` at \`src/components/forms/LoginButton.tsx:33:8\`
+
+**Component Stack:**
+  → App
+  → LoginForm
+  → LoginButton
+
+
+"
+`;
+
+exports[`Quick Select Templates v1.1.8 Snapshot Tests should match snapshot for single element with React source: quick-select-single-with-react 1`] = `
+"
+## Element 1
+
+\`\`\`html
+<button id="submit-btn" class="btn primary">Submit</button>
+\`\`\`
+
+**CSS Selector:** \`#submit-btn\`
+
+
+**React Component:** \`SubmitButton\` at \`src/components/SubmitButton.tsx:28:6\`
+
+**Component Stack:**
+  → App
+  → Form
+  → SubmitButton
+
+
+"
+`;
