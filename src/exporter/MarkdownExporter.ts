@@ -1,4 +1,4 @@
-import type { CapturedElement, ConsoleError, Issue, NetworkError } from '@/shared/types';
+import type { CapturedElement, ConsoleError, Issue, NetworkError, ReactSourceInfo } from '@/shared/types';
 import { storageManager } from '@/background/StorageManager';
 import { DEFAULT_PROMPT_TEMPLATES } from '@/prompts/templates';
 import { renderTemplate, type TemplateContext } from '@/exporter/PromptTemplateRenderer';
@@ -106,6 +106,23 @@ class MarkdownExporter {
   }
 
   /**
+   * Detect if React source info appears to be from a minified build.
+   * If 3+ components in the stack have very short names (≤2 chars),
+   * it's likely minified and we should suppress the output.
+   */
+  private isLikelyMinified(reactSource: ReactSourceInfo): boolean {
+    const shortNameCount = reactSource.componentStack.filter(
+      (name) => name.length <= 2
+    ).length;
+
+    // Also check the main component name
+    const mainNameShort = reactSource.componentName !== null && reactSource.componentName.length <= 2;
+    const totalShort = shortNameCount + (mainNameShort ? 1 : 0);
+
+    return totalShort >= 3;
+  }
+
+  /**
    * Build template context tokens for React source info.
    * Uses the first element's React source if available.
    */
@@ -113,7 +130,8 @@ class MarkdownExporter {
     // Find the first element with React source info
     const firstReactSource = elements.find((el) => el.reactSource)?.reactSource;
 
-    if (!firstReactSource) {
+    // Return empty if no source OR if it looks minified
+    if (!firstReactSource || this.isLikelyMinified(firstReactSource)) {
       return {
         react_source_present: false,
         'react.component_name': '',
