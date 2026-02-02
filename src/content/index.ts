@@ -15,6 +15,22 @@ import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
 
 // Timeout for React source extraction (ms)
 const REACT_SOURCE_TIMEOUT = 500;
+const DEBUG_REACT_CAPTURE = false;
+
+type ClickPoint = { x: number; y: number };
+type ReactSourceRequest = {
+  resolve: (value: ReactSourceInfo | null) => void;
+  timeoutId: number;
+};
+
+const reactSourceRequests = new Map<string, ReactSourceRequest>();
+let reactSourceListenerInitialized = false;
+
+function logReactCapture(...args: unknown[]): void {
+  if (DEBUG_REACT_CAPTURE) {
+    console.log(...args);
+  }
+}
 
 // State
 let elementPickerActive = false;
@@ -26,6 +42,7 @@ let tooltipElement: HTMLDivElement | null = null;
 let selectedElements: CapturedElement[] = [];
 let selectedHighlights: HTMLDivElement[] = [];
 let selectedDOMElements: Element[] = [];
+let selectedReactSourcePromises: Array<Promise<ReactSourceInfo | null>> = [];
 
 // Custom attributes config for element capture
 let customAttributesConfig: CustomAttribute[] = [];
@@ -36,11 +53,44 @@ let quickSelectMode = false;
 // Track last click position for cursor-positioned toast
 let lastClickPosition: { x: number; y: number } = { x: 0, y: 0 };
 
+function ensureReactSourceListener(): void {
+  if (reactSourceListenerInitialized) return;
+  reactSourceListenerInitialized = true;
+  window.addEventListener('message', handleReactSourceMessage);
+}
+
+function handleReactSourceMessage(event: MessageEvent): void {
+  // Only accept messages from the same frame
+  if (event.source !== window) return;
+
+  if (event.data?.type !== 'CLANKER_REACT_SOURCE_RESULT') return;
+
+  const elementId = event.data.elementId;
+  if (typeof elementId !== 'string') return;
+
+  const pending = reactSourceRequests.get(elementId);
+  if (!pending) return;
+
+  reactSourceRequests.delete(elementId);
+  clearTimeout(pending.timeoutId);
+  logReactCapture('[ClankerContext] Received React source response:', event.data.reactSource);
+  pending.resolve(event.data.reactSource ?? null);
+}
+
+function cancelPendingReactRequests(): void {
+  for (const pending of reactSourceRequests.values()) {
+    clearTimeout(pending.timeoutId);
+    pending.resolve(null);
+  }
+  reactSourceRequests.clear();
+}
+
 /**
  * Initialize the content script.
  */
 function init(): void {
   chrome.runtime.onMessage.addListener(handleMessage);
+  ensureReactSourceListener();
   console.log('[ClankerContext] Content script initialized');
 }
 
@@ -292,48 +342,44 @@ function createConfirmationHighlight(rect: DOMRect, index: number): void {
  * Request React source info from the main world script via postMessage.
  * The main world script has access to React internals via window.__REACT_DEVTOOLS_GLOBAL_HOOK__.
  */
-async function getReactSourceFromMainWorld(element: Element): Promise<ReactSourceInfo | null> {
+function getReactSourceFromMainWorld(
+  element: Element,
+  clickPoint?: ClickPoint
+): Promise<ReactSourceInfo | null> {
+  ensureReactSourceListener();
+
   return new Promise((resolve) => {
-    const rect = element.getBoundingClientRect();
     const elementId = crypto.randomUUID();
+    let x = clickPoint?.x;
+    let y = clickPoint?.y;
 
-    console.log('[ClankerContext] Requesting React source for element:', element);
-    console.log('[ClankerContext] Element rect:', rect);
+    if (x === undefined || y === undefined) {
+      const rect = element.getBoundingClientRect();
+      x = rect.left + rect.width / 2;
+      y = rect.top + rect.height / 2;
+    }
 
-    const handler = (event: MessageEvent) => {
-      // Only accept messages from the same frame
-      if (event.source !== window) return;
+    const timeoutId = window.setTimeout(() => {
+      const pending = reactSourceRequests.get(elementId);
+      if (!pending) return;
+      reactSourceRequests.delete(elementId);
+      logReactCapture('[ClankerContext] React source request timed out');
+      pending.resolve(null);
+    }, REACT_SOURCE_TIMEOUT);
 
-      if (
-        event.data?.type === 'CLANKER_REACT_SOURCE_RESULT' &&
-        event.data.elementId === elementId
-      ) {
-        console.log('[ClankerContext] Received React source response:', event.data.reactSource);
-        window.removeEventListener('message', handler);
-        resolve(event.data.reactSource);
-      }
-    };
-
-    window.addEventListener('message', handler);
+    reactSourceRequests.set(elementId, { resolve, timeoutId });
 
     // Send request to main world script
     window.postMessage(
       {
         type: 'CLANKER_GET_REACT_SOURCE',
         elementId,
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
+        x,
+        y,
       },
       '*'
     );
-    console.log('[ClankerContext] Sent React source request with elementId:', elementId);
-
-    // Timeout fallback - don't block if React extractor isn't available
-    setTimeout(() => {
-      console.log('[ClankerContext] React source request timed out');
-      window.removeEventListener('message', handler);
-      resolve(null);
-    }, REACT_SOURCE_TIMEOUT);
+    logReactCapture('[ClankerContext] Sent React source request with elementId:', elementId);
   });
 }
 
@@ -399,9 +445,9 @@ function findCustomAttribute(
 }
 
 /**
- * Capture element data (HTML, selector, custom attributes, and React source).
+ * Capture element data (HTML, selector, and custom attributes).
  */
-async function captureElement(element: Element): Promise<CapturedElement> {
+function captureElementBase(element: Element): CapturedElement {
   let html = element.outerHTML;
   if (html.length > DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) {
     html = html.substring(0, DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) + '<!-- truncated -->';
@@ -414,21 +460,33 @@ async function captureElement(element: Element): Promise<CapturedElement> {
     .map((config) => findCustomAttribute(element, config))
     .filter((attr): attr is CapturedCustomAttribute => attr !== null);
 
-  // Try to get React source info from main world
-  const reactSource = await getReactSourceFromMainWorld(element);
-
   return {
     html,
     selector,
     customAttributes: customAttributes.length > 0 ? customAttributes : undefined,
-    reactSource: reactSource ?? undefined,
   };
+}
+
+/**
+ * Kick off React source capture without blocking UI interactions.
+ */
+function startReactCapture(
+  element: Element,
+  captured: CapturedElement,
+  clickPoint?: ClickPoint
+): Promise<ReactSourceInfo | null> {
+  return getReactSourceFromMainWorld(element, clickPoint).then((reactSource) => {
+    if (reactSource) {
+      captured.reactSource = reactSource;
+    }
+    return reactSource;
+  });
 }
 
 /**
  * Finish element selection and send data to background.
  */
-function finishSelection(): void {
+async function finishSelection(): Promise<void> {
   if (selectedElements.length === 0) {
     cancelElementPicker();
     return;
@@ -436,6 +494,7 @@ function finishSelection(): void {
 
   // Save elements before cleanup (cleanup resets the array)
   const elementsToSend = [...selectedElements];
+  const reactPromises = [...selectedReactSourcePromises];
   const elementCount = elementsToSend.length;
   const isQuickSelect = quickSelectMode;
 
@@ -458,6 +517,9 @@ function finishSelection(): void {
   rects.forEach((rect, index) => {
     createConfirmationHighlight(rect, index);
   });
+
+  // Wait for any pending React source extraction (bounded by timeout)
+  await Promise.allSettled(reactPromises);
 
   // Send to background
   if (isQuickSelect) {
@@ -482,7 +544,7 @@ function finishSelection(): void {
 /**
  * Clean up all picker UI elements.
  */
-function cleanupPicker(): void {
+function cleanupPicker(options: { cancelPendingReact?: boolean } = {}): void {
   elementPickerActive = false;
 
   // Remove main picker elements
@@ -497,10 +559,15 @@ function cleanupPicker(): void {
   // Reset state
   selectedElements = [];
   selectedDOMElements = [];
+  selectedReactSourcePromises = [];
   overlayElement = null;
   highlightElement = null;
   tooltipElement = null;
   quickSelectMode = false;
+
+  if (options.cancelPendingReact) {
+    cancelPendingReactRequests();
+  }
 
   // Remove event listeners (must match capture phase)
   document.removeEventListener('mousemove', handlePickerMouseMove, true);
@@ -535,6 +602,7 @@ function startElementPicker(): void {
   selectedElements = [];
   selectedHighlights = [];
   selectedDOMElements = [];
+  selectedReactSourcePromises = [];
 
   elementPickerActive = true;
 
@@ -606,7 +674,7 @@ function startElementPicker(): void {
 function cancelElementPicker(): void {
   if (!elementPickerActive) return;
 
-  cleanupPicker();
+  cleanupPicker({ cancelPendingReact: true });
 
   chrome.runtime.sendMessage({ type: 'ELEMENT_PICKER_CANCELLED' });
 
@@ -670,7 +738,7 @@ function handlePickerMouseMove(event: MouseEvent): void {
 /**
  * Handle click during element picking.
  */
-async function handlePickerClick(event: MouseEvent): Promise<void> {
+function handlePickerClick(event: MouseEvent): void {
   if (!elementPickerActive) return;
 
   event.preventDefault();
@@ -685,8 +753,10 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
   // Check if CTRL/CMD is held for multi-select
   const isMultiSelect = event.ctrlKey || event.metaKey;
 
+  const clickPoint = { x: event.clientX, y: event.clientY };
+
   // Save cursor position for toast positioning (used for both single and multi-select)
-  lastClickPosition = { x: event.clientX, y: event.clientY };
+  lastClickPosition = clickPoint;
 
   if (isMultiSelect) {
     // Check if element is already selected
@@ -696,6 +766,7 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
       // Deselect: remove from all arrays
       selectedElements.splice(existingIndex, 1);
       selectedDOMElements.splice(existingIndex, 1);
+      selectedReactSourcePromises.splice(existingIndex, 1);
       const [removedHighlight] = selectedHighlights.splice(existingIndex, 1);
       removedHighlight.remove();
 
@@ -705,9 +776,11 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
       console.log('[ClankerContext] Element deselected');
     } else {
       // Select: capture and add to arrays
-      const captured = await captureElement(element);
+      const captured = captureElementBase(element);
+      const reactPromise = startReactCapture(element, captured, clickPoint);
       selectedElements.push(captured);
       selectedDOMElements.push(element);
+      selectedReactSourcePromises.push(reactPromise);
       const highlight = createSelectedHighlight(element, selectedElements.length - 1);
       selectedHighlights.push(highlight);
       updateTooltip();
@@ -715,12 +788,14 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
     }
   } else {
     // Single-select: capture element, create highlight and finish
-    const captured = await captureElement(element);
+    const captured = captureElementBase(element);
+    const reactPromise = startReactCapture(element, captured, clickPoint);
     selectedElements.push(captured);
     selectedDOMElements.push(element);
+    selectedReactSourcePromises.push(reactPromise);
     const highlight = createSelectedHighlight(element, selectedElements.length - 1);
     selectedHighlights.push(highlight);
-    finishSelection();
+    void finishSelection();
     console.log('[ClankerContext] Element selected:', captured.selector);
   }
 }
@@ -738,7 +813,7 @@ function handlePickerKeyDown(event: KeyboardEvent): void {
   } else if (event.key === 'Enter' && selectedElements.length > 0) {
     event.preventDefault();
     event.stopPropagation();
-    finishSelection();
+    void finishSelection();
   }
 }
 

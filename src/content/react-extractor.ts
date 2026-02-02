@@ -19,6 +19,16 @@ import {
 import { getOwnerStack, getSource, isSourceFile, normalizeFileName } from 'bippy/source';
 import type { ReactSourceInfo } from '@/shared/types';
 
+const DEBUG_REACT_EXTRACTOR = false;
+
+type FiberNode = any;
+
+function logDebug(...args: unknown[]): void {
+  if (DEBUG_REACT_EXTRACTOR) {
+    console.log(...args);
+  }
+}
+
 // Internal React component names to filter out
 const INTERNAL_COMPONENTS = new Set([
   'Suspense',
@@ -84,14 +94,14 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
   try {
     // Check if React DevTools hook is available
     if (!hasRDTHook()) {
-      console.log('[ClankerContext] React DevTools hook not available');
+      logDebug('[ClankerContext] React DevTools hook not available');
       return null;
     }
 
     // Get the fiber from the DOM element
     const fiber = getFiberFromHostInstance(element);
     if (!fiber) {
-      console.log('[ClankerContext] No fiber found for element');
+      logDebug('[ClankerContext] No fiber found for element');
       return null;
     }
 
@@ -101,20 +111,23 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
       return null;
     }
 
-    // Find the nearest composite fiber (actual component) going up the tree
-    let compositeFiber = latestFiber;
-    let found = false;
+    // Find the nearest composite fiber and build the component stack in one pass
+    let compositeFiber: FiberNode | null = null;
+    const componentStack: string[] = [];
 
     traverseFiber(
       latestFiber,
       (f) => {
-        if (found) return true; // Stop traversal
         if (isCompositeFiber(f)) {
           const name = getDisplayName(f.type);
-          if (isUserComponent(name)) {
-            compositeFiber = f;
-            found = true;
-            return true; // Stop traversal
+          if (isUserComponent(name) && name) {
+            if (!compositeFiber) {
+              compositeFiber = f;
+            }
+            componentStack.push(name);
+            if (componentStack.length >= 10) {
+              return true; // Stop traversal after stack limit
+            }
           }
         }
         return false;
@@ -122,13 +135,14 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
       true // ascending (go up the tree)
     );
 
-    if (!found || !isCompositeFiber(compositeFiber)) {
-      console.log('[ClankerContext] No user component found in fiber tree');
+    if (!compositeFiber) {
+      logDebug('[ClankerContext] No user component found in fiber tree');
       return null;
     }
 
     // Get the component name
-    const componentName = getDisplayName(compositeFiber.type) || null;
+    const resolvedCompositeFiber = compositeFiber as FiberNode;
+    const componentName = getDisplayName(resolvedCompositeFiber.type) || null;
 
     // Try to get source info
     let filePath: string | null = null;
@@ -136,37 +150,20 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
     let columnNumber: number | null = null;
 
     try {
-      const source = await getSource(compositeFiber);
+      const source = await getSource(resolvedCompositeFiber);
       if (source) {
         filePath = source.fileName ? normalizeFileName(source.fileName) : null;
         lineNumber = source.lineNumber ?? null;
         columnNumber = source.columnNumber ?? null;
       }
     } catch (e) {
-      console.log('[ClankerContext] Could not get source:', e);
+      logDebug('[ClankerContext] Could not get source:', e);
     }
-
-    // Build component stack by traversing up the tree
-    const componentStack: string[] = [];
-    traverseFiber(
-      compositeFiber,
-      (f) => {
-        if (isCompositeFiber(f)) {
-          const name = getDisplayName(f.type);
-          if (isUserComponent(name) && name) {
-            componentStack.push(name);
-          }
-        }
-        // Limit stack depth
-        return componentStack.length >= 10;
-      },
-      true // ascending
-    );
 
     // If we couldn't get source from getSource, try getOwnerStack
     if (!filePath && componentStack.length > 0) {
       try {
-        const ownerStack = await getOwnerStack(compositeFiber);
+        const ownerStack = await getOwnerStack(resolvedCompositeFiber);
         if (ownerStack && ownerStack.length > 0) {
           // Find the first frame that's a user source file
           for (const frame of ownerStack) {
@@ -179,7 +176,7 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
           }
         }
       } catch (e) {
-        console.log('[ClankerContext] Could not get owner stack:', e);
+        logDebug('[ClankerContext] Could not get owner stack:', e);
       }
     }
 
@@ -233,18 +230,18 @@ if (!(window as any)[INIT_FLAG]) {
     if (event.source !== window) return;
 
     if (event.data?.type === 'CLANKER_GET_REACT_SOURCE') {
-      console.log('[ClankerContext] React extractor received request:', event.data);
+      logDebug('[ClankerContext] React extractor received request:', event.data);
       const { elementId, x, y } = event.data;
 
       // Find the element at the specified coordinates, filtering out our overlay
       const element = getElementUnderPoint(x, y);
-      console.log('[ClankerContext] Element at point:', element);
+      logDebug('[ClankerContext] Element at point:', element);
 
       let reactSource: ReactSourceInfo | null = null;
 
       if (element) {
         reactSource = await extractReactSource(element);
-        console.log('[ClankerContext] Extracted React source:', reactSource);
+        logDebug('[ClankerContext] Extracted React source:', reactSource);
       }
 
       // Send the result back to the content script
@@ -256,18 +253,18 @@ if (!(window as any)[INIT_FLAG]) {
         },
         '*'
       );
-      console.log('[ClankerContext] Sent response back');
+      logDebug('[ClankerContext] Sent response back');
     }
   });
 
   // Debug: Check if React DevTools hook exists
   const hookExists = hasRDTHook();
-  console.log('[ClankerContext] React extractor initialized');
-  console.log('[ClankerContext] React DevTools hook exists:', hookExists);
+  logDebug('[ClankerContext] React extractor initialized');
+  logDebug('[ClankerContext] React DevTools hook exists:', hookExists);
   if (hookExists) {
     const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
-    console.log('[ClankerContext] Hook renderers:', hook?.renderers?.size);
+    logDebug('[ClankerContext] Hook renderers:', hook?.renderers?.size);
   }
 } else {
-  console.log('[ClankerContext] React extractor already initialized, skipping');
+  logDebug('[ClankerContext] React extractor already initialized, skipping');
 }
