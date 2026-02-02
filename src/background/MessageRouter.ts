@@ -61,9 +61,10 @@ async function injectContentScript(tabId: number): Promise<void> {
       files: ['react-extractor.js'],
       world: 'MAIN',
     });
-  } catch {
+  } catch (error) {
     // React extractor injection failure is non-fatal
     // The extension will still work, just without React source info
+    console.warn('[MessageRouter] React extractor injection failed (non-fatal):', error);
   }
 
   // Content script can be skipped if already injected
@@ -77,9 +78,10 @@ async function injectContentScript(tabId: number): Promise<void> {
       files: ['content.js'],
     });
     injectedTabs.add(tabId);
-  } catch {
+  } catch (error) {
     // Injection can fail on restricted pages, and the script
     // might already be there from a previous session
+    console.warn('[MessageRouter] Content script injection failed:', error);
     // Still add to injectedTabs to avoid repeated failed attempts
     injectedTabs.add(tabId);
   }
@@ -965,7 +967,8 @@ async function handleContentMessage(
           await storageManager.markIssueExported(issue.id);
           // Clear auto-sending state on success
           await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
-        } catch {
+        } catch (error) {
+          console.warn('[MessageRouter] Auto-send failed:', error);
           // Set error flag and clear sending state
           await chrome.storage.session.set({ autoSendError: true });
           await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);

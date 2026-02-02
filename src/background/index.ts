@@ -90,8 +90,8 @@ async function init(): Promise<void> {
 }
 
 // Initialize on service worker start
-init().catch(() => {
-  // Failed to initialize
+init().catch((error) => {
+  console.error('[ClankerContext] Failed to initialize:', error);
 });
 
 // Handle extension installation

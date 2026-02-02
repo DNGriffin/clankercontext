@@ -245,7 +245,7 @@ class CDPController {
 
     storageManager
       .addNetworkError(session.sessionId, networkError)
-      .catch(() => {});
+      .catch((error) => console.warn('[CDP] Failed to store network error:', error));
   }
 
   /**
@@ -267,7 +267,7 @@ class CDPController {
 
     storageManager
       .addNetworkError(session.sessionId, networkError)
-      .catch(() => {});
+      .catch((error) => console.warn('[CDP] Failed to store network error:', error));
   }
 
   /**
@@ -314,7 +314,7 @@ class CDPController {
 
     storageManager
       .addConsoleError(session.sessionId, consoleError)
-      .catch(() => {});
+      .catch((error) => console.warn('[CDP] Failed to store console error:', error));
   }
 
   /**
@@ -353,7 +353,7 @@ class CDPController {
 
     storageManager
       .addConsoleError(session.sessionId, consoleError)
-      .catch(() => {});
+      .catch((error) => console.warn('[CDP] Failed to store exception:', error));
   }
 
   /**

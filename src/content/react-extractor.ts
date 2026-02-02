@@ -176,7 +176,8 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
       columnNumber,
       componentStack,
     };
-  } catch {
+  } catch (error) {
+    console.warn('[ClankerContext] React source extraction failed:', error);
     return null;
   }
 }
