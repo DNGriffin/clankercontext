@@ -60,8 +60,8 @@ export class SessionStateMachine {
     for (const listener of this.listeners) {
       try {
         listener(event);
-      } catch (error) {
-        console.error('[SessionStateMachine] Listener error:', error);
+      } catch {
+        // Listener error
       }
     }
   }
@@ -187,8 +187,8 @@ export class SessionStateMachine {
       if (clearData) {
         try {
           await storageManager.deleteSession(previousSession.sessionId);
-        } catch (e) {
-          console.error('[SessionStateMachine] Failed to clear session data:', e);
+        } catch {
+          // Failed to clear session data
         }
       } else {
         try {
@@ -197,8 +197,8 @@ export class SessionStateMachine {
             state: 'idle',
             pendingIssueType: undefined,
           });
-        } catch (e) {
-          console.error('[SessionStateMachine] Failed to persist idle session:', e);
+        } catch {
+          // Failed to persist idle session
         }
       }
     }
@@ -219,11 +219,10 @@ export class SessionStateMachine {
       if (session) {
         this.currentSession = session;
         this.currentState = session.state;
-        console.log('[SessionStateMachine] Rehydrated session:', session.sessionId, 'state:', session.state);
         return true;
       }
-    } catch (e) {
-      console.error('[SessionStateMachine] Failed to rehydrate:', e);
+    } catch {
+      // Failed to rehydrate
     }
     return false;
   }
@@ -251,7 +250,6 @@ export class SessionStateMachine {
       session: this.currentSession,
     });
 
-    console.log('[SessionStateMachine] Resumed session:', session.sessionId, 'on tab:', newTabId);
     return resumedSession;
   }
 
@@ -273,11 +271,8 @@ export class SessionStateMachine {
 
     // Don't switch if we're in the middle of element selection
     if (this.currentState === 'selecting_element') {
-      console.log('[SessionStateMachine] Ignoring tab switch during element selection');
       return;
     }
-
-    console.log('[SessionStateMachine] Switching from tab', this.currentSession.tabId, 'to', newTabId);
 
     this.currentSession = {
       ...this.currentSession,

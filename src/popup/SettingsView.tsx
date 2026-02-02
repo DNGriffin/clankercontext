@@ -153,8 +153,8 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
         const result = await chrome.storage.local.get('autoCopyOnLog');
         // Default to true if not set
         setAutoCopyOnLog(result.autoCopyOnLog !== false);
-      } catch (e) {
-        console.error('Failed to load auto-copy setting:', e);
+      } catch {
+        // Failed to load auto-copy setting
       } finally {
         setAutoCopyLoading(false);
       }

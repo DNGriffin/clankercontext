@@ -19,15 +19,7 @@ import {
 import { getOwnerStack, getSource, isSourceFile, normalizeFileName } from 'bippy/source';
 import type { ReactSourceInfo } from '@/shared/types';
 
-const DEBUG_REACT_EXTRACTOR = false;
-
 type FiberNode = any;
-
-function logDebug(...args: unknown[]): void {
-  if (DEBUG_REACT_EXTRACTOR) {
-    console.log(...args);
-  }
-}
 
 // Internal React component names to filter out
 const INTERNAL_COMPONENTS = new Set([
@@ -94,14 +86,12 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
   try {
     // Check if React DevTools hook is available
     if (!hasRDTHook()) {
-      logDebug('[ClankerContext] React DevTools hook not available');
       return null;
     }
 
     // Get the fiber from the DOM element
     const fiber = getFiberFromHostInstance(element);
     if (!fiber) {
-      logDebug('[ClankerContext] No fiber found for element');
       return null;
     }
 
@@ -136,7 +126,6 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
     );
 
     if (!compositeFiber) {
-      logDebug('[ClankerContext] No user component found in fiber tree');
       return null;
     }
 
@@ -156,8 +145,8 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
         lineNumber = source.lineNumber ?? null;
         columnNumber = source.columnNumber ?? null;
       }
-    } catch (e) {
-      logDebug('[ClankerContext] Could not get source:', e);
+    } catch {
+      // Could not get source
     }
 
     // If we couldn't get source from getSource, try getOwnerStack
@@ -175,8 +164,8 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
             }
           }
         }
-      } catch (e) {
-        logDebug('[ClankerContext] Could not get owner stack:', e);
+      } catch {
+        // Could not get owner stack
       }
     }
 
@@ -187,8 +176,7 @@ async function extractReactSource(element: Element): Promise<ReactSourceInfo | n
       columnNumber,
       componentStack,
     };
-  } catch (e) {
-    console.error('[ClankerContext] Error extracting React source:', e);
+  } catch {
     return null;
   }
 }
@@ -230,18 +218,15 @@ if (!(window as any)[INIT_FLAG]) {
     if (event.source !== window) return;
 
     if (event.data?.type === 'CLANKER_GET_REACT_SOURCE') {
-      logDebug('[ClankerContext] React extractor received request:', event.data);
       const { elementId, x, y } = event.data;
 
       // Find the element at the specified coordinates, filtering out our overlay
       const element = getElementUnderPoint(x, y);
-      logDebug('[ClankerContext] Element at point:', element);
 
       let reactSource: ReactSourceInfo | null = null;
 
       if (element) {
         reactSource = await extractReactSource(element);
-        logDebug('[ClankerContext] Extracted React source:', reactSource);
       }
 
       // Send the result back to the content script
@@ -253,18 +238,9 @@ if (!(window as any)[INIT_FLAG]) {
         },
         '*'
       );
-      logDebug('[ClankerContext] Sent response back');
     }
   });
 
-  // Debug: Check if React DevTools hook exists
-  const hookExists = hasRDTHook();
-  logDebug('[ClankerContext] React extractor initialized');
-  logDebug('[ClankerContext] React DevTools hook exists:', hookExists);
-  if (hookExists) {
-    const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
-    logDebug('[ClankerContext] Hook renderers:', hook?.renderers?.size);
-  }
 } else {
-  logDebug('[ClankerContext] React extractor already initialized, skipping');
+  // React extractor already initialized, skipping
 }

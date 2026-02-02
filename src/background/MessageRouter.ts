@@ -61,32 +61,25 @@ async function injectContentScript(tabId: number): Promise<void> {
       files: ['react-extractor.js'],
       world: 'MAIN',
     });
-    console.log('[MessageRouter] React extractor injected in MAIN world');
-  } catch (e) {
+  } catch {
     // React extractor injection failure is non-fatal
     // The extension will still work, just without React source info
-    console.warn('[MessageRouter] React extractor injection failed (non-fatal):', e);
   }
 
   // Content script can be skipped if already injected
   if (injectedTabs.has(tabId)) {
-    console.log('[MessageRouter] Content script already injected in tab:', tabId);
     return;
   }
 
   try {
-    console.log('[MessageRouter] Injecting content script into tab:', tabId);
-
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ['content.js'],
     });
     injectedTabs.add(tabId);
-    console.log('[MessageRouter] Content script injected successfully');
-  } catch (e) {
-    // Use warn - injection can fail on restricted pages, and the script
+  } catch {
+    // Injection can fail on restricted pages, and the script
     // might already be there from a previous session
-    console.warn('[MessageRouter] Content script injection failed:', e);
     // Still add to injectedTabs to avoid repeated failed attempts
     injectedTabs.add(tabId);
   }
@@ -167,8 +160,6 @@ async function handlePopupMessage(
         currentWindow: true,
       });
 
-      console.log('[MessageRouter] START_LISTENING - tab:', tab?.id, 'url:', tab?.url);
-
       if (!tab?.id || !tab.url) {
         throw new Error('No active tab found');
       }
@@ -192,7 +183,6 @@ async function handlePopupMessage(
         }
         // Resume the existing session on the current tab
         await sessionStateMachine.resumeSession(existingSession, tab.id);
-        console.log('[MessageRouter] Resumed existing session:', existingSession.sessionId);
       } else {
         // Start a new monitoring session
         await sessionStateMachine.startMonitoring(tab.id);
@@ -243,8 +233,6 @@ async function handlePopupMessage(
         active: true,
         currentWindow: true,
       });
-
-      console.log('[MessageRouter] RESUME_LISTENING - tab:', tab?.id, 'url:', tab?.url);
 
       if (!tab?.id) {
         throw new Error('No active tab found');
@@ -310,16 +298,13 @@ async function handlePopupMessage(
       const customAttributes = await storageManager.getCustomAttributes();
 
       // Tell content script to start element picker
-      console.log('[MessageRouter] Sending START_ELEMENT_PICKER to tab:', session.tabId);
       try {
-        const response = await chrome.tabs.sendMessage(session.tabId, {
+        await chrome.tabs.sendMessage(session.tabId, {
           type: 'START_ELEMENT_PICKER',
           issueType: message.issueType,
           customAttributes,
         } as BackgroundToContentMessage);
-        console.log('[MessageRouter] START_ELEMENT_PICKER response:', response);
-      } catch (e) {
-        console.error('[MessageRouter] Failed to send START_ELEMENT_PICKER:', e);
+      } catch {
         // If content script fails, reset element selection state
         await sessionStateMachine.finishElementSelection();
         throw new Error('Could not communicate with page. Try refreshing.');
@@ -698,7 +683,6 @@ async function handlePopupMessage(
         await storageManager.addCustomAttribute(customAttribute);
         return { success: true, customAttribute } as CustomAttributeMutationResponse;
       } catch (error) {
-        console.error('[MessageRouter] ADD_CUSTOM_ATTRIBUTE error:', error);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Failed to add custom attribute',
@@ -750,7 +734,6 @@ async function handlePopupMessage(
         await storageManager.updateCustomAttribute(updated);
         return { success: true, customAttribute: updated } as CustomAttributeMutationResponse;
       } catch (error) {
-        console.error('[MessageRouter] UPDATE_CUSTOM_ATTRIBUTE error:', error);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Failed to update custom attribute',
@@ -766,7 +749,6 @@ async function handlePopupMessage(
         await storageManager.deleteCustomAttribute(message.attributeId);
         return { success: true } as CustomAttributeMutationResponse;
       } catch (error) {
-        console.error('[MessageRouter] DELETE_CUSTOM_ATTRIBUTE error:', error);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Failed to delete custom attribute',
@@ -799,7 +781,6 @@ async function handlePopupMessage(
       const customAttributes = await storageManager.getCustomAttributes();
 
       // Tell content script to start element picker in quick select mode
-      console.log('[MessageRouter] Sending START_ELEMENT_PICKER (quickSelect) to tab:', tab.id);
       try {
         await chrome.tabs.sendMessage(tab.id, {
           type: 'START_ELEMENT_PICKER',
@@ -807,8 +788,7 @@ async function handlePopupMessage(
           customAttributes,
           quickSelect: true,
         } as BackgroundToContentMessage);
-      } catch (e) {
-        console.error('[MessageRouter] Failed to send START_ELEMENT_PICKER:', e);
+      } catch {
         throw new Error('Could not communicate with page. Try refreshing.');
       }
 
@@ -829,8 +809,6 @@ async function handleContentMessage(
 ): Promise<boolean> {
   // Handle QUICK_SELECT_COMPLETE first - doesn't require a session
   if (message.type === 'QUICK_SELECT_COMPLETE') {
-    console.log('[MessageRouter] QUICK_SELECT_COMPLETE received with', message.elements.length, 'elements');
-
     // Generate markdown using the customizable quick select template
     const markdown = await markdownExporter.buildQuickSelectMarkdown(
       message.elements,
@@ -848,9 +826,8 @@ async function handleContentMessage(
           },
           args: [markdown],
         });
-        console.log('[MessageRouter] Quick select markdown copied to clipboard');
-      } catch (e) {
-        console.error('[MessageRouter] Failed to copy to clipboard:', e);
+      } catch {
+        // Failed to copy to clipboard
       }
     }
 
@@ -859,7 +836,6 @@ async function handleContentMessage(
 
   const session = sessionStateMachine.getSession();
   if (!session) {
-    console.warn('[MessageRouter] Received content message with no active session');
     return false;
   }
 
@@ -873,7 +849,6 @@ async function handleContentMessage(
       } | undefined;
 
       if (!pendingIssue) {
-        console.error('[MessageRouter] No pending issue info found');
         await sessionStateMachine.finishElementSelection();
         return false;
       }
@@ -910,8 +885,8 @@ async function handleContentMessage(
         if (autoCopyOnLog !== false) {
           await chrome.storage.session.set({ autoCopyIssueId: issue.id });
         }
-      } catch (e) {
-        console.warn('[MessageRouter] Failed to check auto-copy setting:', e);
+      } catch {
+        // Failed to check auto-copy setting
       }
 
       // Check if we should auto-send BEFORE opening popup
@@ -938,17 +913,14 @@ async function handleContentMessage(
             shouldAutoSend = status.type === 'idle';
             autoSendType = 'opencode';
 
-            if (!shouldAutoSend) {
-              console.log('[MessageRouter] OpenCode session busy, skipping auto-send');
-            }
           } else if (autoSendConnection.type === 'vscode' && autoSendConnection.selectedInstanceId) {
             // VSCode doesn't have a busy/idle status, so we just send directly
             shouldAutoSend = true;
             autoSendType = 'vscode';
           }
         }
-      } catch (e) {
-        console.warn('[MessageRouter] Failed to check auto-send eligibility:', e);
+      } catch {
+        // Failed to check auto-send eligibility
       }
 
       // Set auto-sending state BEFORE opening popup so it shows loading immediately
@@ -962,8 +934,8 @@ async function handleContentMessage(
       // Open the extension popup
       try {
         await chrome.action.openPopup();
-      } catch (e) {
-        console.warn('[MessageRouter] Could not open popup:', e);
+      } catch {
+        // Could not open popup
       }
 
       // Now do the actual auto-send
@@ -981,22 +953,19 @@ async function handleContentMessage(
               markdown,
               autoSendConnection.selectedSessionDirectory
             );
-            console.log('[MessageRouter] Auto-sent issue to OpenCode');
           } else if (autoSendType === 'vscode' && autoSendConnection.selectedInstanceId && autoSendConnection.selectedInstancePort) {
             await vsCodeClient.sendMessage(
               autoSendConnection.selectedInstanceId,
               autoSendConnection.selectedInstancePort,
               markdown
             );
-            console.log('[MessageRouter] Auto-sent issue to VSCode');
           }
 
           // Mark as exported
           await storageManager.markIssueExported(issue.id);
           // Clear auto-sending state on success
           await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
-        } catch (e) {
-          console.warn('[MessageRouter] Auto-send failed:', e);
+        } catch {
           // Set error flag and clear sending state
           await chrome.storage.session.set({ autoSendError: true });
           await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
@@ -1050,9 +1019,6 @@ export function initMessageRouter(): void {
     handlePromise
       .then((result) => sendResponse(result))
       .catch((error) => {
-        // Use warn instead of error - most errors here are expected
-        // (restricted pages, state guards, etc.) and are handled in the UI
-        console.warn('[MessageRouter] Error handling message:', error);
         sendResponse({ error: error.message });
       });
 

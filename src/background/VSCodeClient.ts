@@ -106,19 +106,14 @@ class VSCodeClient {
       registeredInstances = await this.getInstances(endpoint);
     } catch {
       // Configured endpoint failed - scan for any available server
-      console.log(`Configured endpoint ${endpoint} failed, scanning for available servers...`);
       const availableEndpoint = await this.findAvailableServer();
 
       if (availableEndpoint) {
-        console.log(`Found available server at ${availableEndpoint}`);
         try {
           registeredInstances = await this.getInstances(availableEndpoint);
         } catch {
           // Even the discovered server failed to return instances
-          console.log(`Failed to get instances from ${availableEndpoint}`);
         }
-      } else {
-        console.log('No VSCode servers found on any port');
       }
     }
 
@@ -143,7 +138,6 @@ class VSCodeClient {
           }
         } catch {
           // Instance is dead or not responding - skip it
-          console.log(`VSCode instance ${instance.id} on port ${instance.port} is not responding`);
         }
       })
     );

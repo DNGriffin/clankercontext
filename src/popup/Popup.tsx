@@ -172,8 +172,8 @@ export function Popup(): React.ReactElement {
           setActionSuccess({ id: autoCopyIssueId, type: 'copy' });
           setTimeout(() => setActionSuccess(null), 2000);
         }
-      } catch (e) {
-        console.error('[Popup] Auto-copy failed:', e);
+      } catch {
+        // Auto-copy failed
       }
     };
 

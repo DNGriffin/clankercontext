@@ -537,7 +537,6 @@ class StorageManager {
     await this.addConnection(vsCodeConnection);
     await chrome.storage.local.set({ defaultConnectionsInitialized: true });
 
-    console.log('[StorageManager] Default connections initialized');
     return true;
   }
 }

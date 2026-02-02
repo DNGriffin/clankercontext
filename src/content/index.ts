@@ -15,7 +15,6 @@ import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
 
 // Timeout for React source extraction (ms)
 const REACT_SOURCE_TIMEOUT = 500;
-const DEBUG_REACT_CAPTURE = false;
 
 type ClickPoint = { x: number; y: number };
 type ReactSourceRequest = {
@@ -25,12 +24,6 @@ type ReactSourceRequest = {
 
 const reactSourceRequests = new Map<string, ReactSourceRequest>();
 let reactSourceListenerInitialized = false;
-
-function logReactCapture(...args: unknown[]): void {
-  if (DEBUG_REACT_CAPTURE) {
-    console.log(...args);
-  }
-}
 
 // State
 let elementPickerActive = false;
@@ -73,7 +66,6 @@ function handleReactSourceMessage(event: MessageEvent): void {
 
   reactSourceRequests.delete(elementId);
   clearTimeout(pending.timeoutId);
-  logReactCapture('[ClankerContext] Received React source response:', event.data.reactSource);
   pending.resolve(event.data.reactSource ?? null);
 }
 
@@ -91,7 +83,6 @@ function cancelPendingReactRequests(): void {
 function init(): void {
   chrome.runtime.onMessage.addListener(handleMessage);
   ensureReactSourceListener();
-  console.log('[ClankerContext] Content script initialized');
 }
 
 /**
@@ -102,8 +93,6 @@ function handleMessage(
   _sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): boolean {
-  console.log('[ClankerContext] Received message:', message.type);
-
   switch (message.type) {
     case 'START_ELEMENT_PICKER':
       customAttributesConfig = message.customAttributes || [];
@@ -118,7 +107,6 @@ function handleMessage(
       break;
 
     default:
-      console.log('[ClankerContext] Unknown message type:', (message as { type: string }).type);
       sendResponse({ error: 'Unknown message type' });
   }
 
@@ -363,7 +351,6 @@ function getReactSourceFromMainWorld(
       const pending = reactSourceRequests.get(elementId);
       if (!pending) return;
       reactSourceRequests.delete(elementId);
-      logReactCapture('[ClankerContext] React source request timed out');
       pending.resolve(null);
     }, REACT_SOURCE_TIMEOUT);
 
@@ -379,7 +366,6 @@ function getReactSourceFromMainWorld(
       },
       '*'
     );
-    logReactCapture('[ClankerContext] Sent React source request with elementId:', elementId);
   });
 }
 
@@ -495,7 +481,6 @@ async function finishSelection(): Promise<void> {
   // Save elements before cleanup (cleanup resets the array)
   const elementsToSend = [...selectedElements];
   const reactPromises = [...selectedReactSourcePromises];
-  const elementCount = elementsToSend.length;
   const isQuickSelect = quickSelectMode;
 
   // Collect rects from selected highlights BEFORE cleanup
@@ -530,14 +515,12 @@ async function finishSelection(): Promise<void> {
     });
     // Show toast notification on the page
     showCopiedToast();
-    console.log('[ClankerContext] Quick select completed:', elementCount, 'elements');
   } else {
     chrome.runtime.sendMessage({
       type: 'ELEMENT_SELECTED',
       elements: elementsToSend,
       pageUrl: window.location.href,
     });
-    console.log('[ClankerContext] Elements selected:', elementCount);
   }
 }
 
@@ -579,16 +562,12 @@ function cleanupPicker(options: { cancelPendingReact?: boolean } = {}): void {
  * Start the element picker for issue capture.
  */
 function startElementPicker(): void {
-  console.log('[ClankerContext] Starting element picker');
-
   if (elementPickerActive) {
-    console.log('[ClankerContext] Element picker already active');
     return;
   }
 
   // Ensure body exists
   if (!document.body) {
-    console.error('[ClankerContext] document.body not available');
     return;
   }
 
@@ -664,8 +643,6 @@ function startElementPicker(): void {
   document.addEventListener('mousemove', handlePickerMouseMove, true);
   document.addEventListener('mousedown', handlePickerClick, true);
   document.addEventListener('keydown', handlePickerKeyDown, true);
-
-  console.log('[ClankerContext] Element picker started');
 }
 
 /**
@@ -677,8 +654,6 @@ function cancelElementPicker(): void {
   cleanupPicker({ cancelPendingReact: true });
 
   chrome.runtime.sendMessage({ type: 'ELEMENT_PICKER_CANCELLED' });
-
-  console.log('[ClankerContext] Element picker cancelled');
 }
 
 /**
@@ -773,7 +748,6 @@ function handlePickerClick(event: MouseEvent): void {
       // Re-number remaining badges
       updateHighlightBadges();
       updateTooltip();
-      console.log('[ClankerContext] Element deselected');
     } else {
       // Select: capture and add to arrays
       const captured = captureElementBase(element);
@@ -784,7 +758,6 @@ function handlePickerClick(event: MouseEvent): void {
       const highlight = createSelectedHighlight(element, selectedElements.length - 1);
       selectedHighlights.push(highlight);
       updateTooltip();
-      console.log('[ClankerContext] Element added to selection:', captured.selector);
     }
   } else {
     // Single-select: capture element, create highlight and finish
@@ -796,7 +769,6 @@ function handlePickerClick(event: MouseEvent): void {
     const highlight = createSelectedHighlight(element, selectedElements.length - 1);
     selectedHighlights.push(highlight);
     void finishSelection();
-    console.log('[ClankerContext] Element selected:', captured.selector);
   }
 }
 

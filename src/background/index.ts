@@ -37,8 +37,6 @@ export const initPromise = new Promise<void>((resolve) => {
  * Initialize the background service worker.
  */
 async function init(): Promise<void> {
-  console.log('[ClankerContext] Initializing background service worker');
-
   // Initialize storage
   await storageManager.init();
 
@@ -49,7 +47,6 @@ async function init(): Promise<void> {
   const rehydrated = await sessionStateMachine.rehydrate();
   if (rehydrated) {
     const session = sessionStateMachine.getSession();
-    console.log('[ClankerContext] Session rehydrated, state:', session?.state);
 
     // Check if paused
     const pausedResult = await chrome.storage.session.get('isPaused');
@@ -61,22 +58,17 @@ async function init(): Promise<void> {
         // Verify tab still exists and isn't a restricted page
         const tab = await chrome.tabs.get(session.tabId);
         if (!tab || isRestrictedUrl(tab.url)) {
-          console.warn('[ClankerContext] Stale or restricted tab, resetting session');
           // Use clearData=false to preserve issues across extension reloads
           await sessionStateMachine.forceReset(false);
           await iconController.showSleepIcon();
         } else {
           await cdpController.attach(session.tabId);
-          console.log('[ClankerContext] CDP re-attached to tab:', session.tabId);
         }
-      } catch (e) {
-        console.warn('[ClankerContext] Tab no longer exists or failed to attach:', e);
+      } catch {
         // Tab doesn't exist anymore, reset the session state but preserve issues
         await sessionStateMachine.forceReset(false);
         await iconController.showSleepIcon();
       }
-    } else if (isPaused) {
-      console.log('[ClankerContext] Session is paused, not attaching CDP');
     }
 
     // Restore icon state based on session state
@@ -87,34 +79,23 @@ async function init(): Promise<void> {
   initMessageRouter();
 
   // Handle external debugger detachment (e.g., user clicks "Cancel" on debugging banner)
-  cdpController.setOnDetachCallback(async (reason: string) => {
-    console.log('[ClankerContext] CDP detached externally:', reason);
-
+  cdpController.setOnDetachCallback(async () => {
     // Pause listening on external detach
     await chrome.storage.session.set({ isPaused: true });
     await iconController.showSleepIcon();
   });
 
-  // Subscribe to session events for logging
-  sessionStateMachine.subscribe((event) => {
-    console.log('[SessionStateMachine] Event:', event.type, event.state);
-  });
-
   // Signal that initialization is complete
   initResolve();
-
-  console.log('[ClankerContext] Background service worker initialized');
 }
 
 // Initialize on service worker start
-init().catch((error) => {
-  console.error('[ClankerContext] Failed to initialize:', error);
+init().catch(() => {
+  // Failed to initialize
 });
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('[ClankerContext] Extension installed:', details.reason);
-
   if (details.reason === 'install') {
     // First installation - ensure default connections are created
     await storageManager.init();
@@ -140,8 +121,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     return;
   }
 
-  console.log('[ClankerContext] Tab switched from', session.tabId, 'to', activeInfo.tabId);
-
   try {
     // Detach CDP from old tab
     if (cdpController.isAttached()) {
@@ -160,20 +139,17 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     // Check if new tab is a restricted page before attaching CDP
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (isRestrictedUrl(tab.url)) {
-      console.log('[ClankerContext] Skipping CDP attach for restricted page:', tab.url);
       return;
     }
 
     // Attach CDP to new tab
     await cdpController.attach(activeInfo.tabId);
-
-    console.log('[ClankerContext] Session switched to tab:', activeInfo.tabId);
-  } catch (e) {
-    console.warn('[ClankerContext] Failed to switch tab:', e);
+  } catch {
+    // Failed to switch tab
   }
 });
 
 // Handle service worker activation
 self.addEventListener('activate', () => {
-  console.log('[ClankerContext] Service worker activated');
+  // Service worker activated
 });
