@@ -27,6 +27,7 @@ import { initPromise } from './index';
 
 // Track tabs where content script has been injected
 const injectedTabs = new Set<number>();
+let elementSelectionInFlight = false;
 
 /**
  * Clear injection tracking for a specific tab.
@@ -843,139 +844,158 @@ async function handleContentMessage(
 
   switch (message.type) {
     case 'ELEMENT_SELECTED': {
-      // Get pending issue info from session storage
-      const result = await chrome.storage.session.get('pendingIssue');
-      const pendingIssue = result.pendingIssue as {
-        userPrompt: string;
-        issueType: 'enhancement' | 'fix';
-      } | undefined;
-
-      if (!pendingIssue) {
-        await sessionStateMachine.finishElementSelection();
+      if (elementSelectionInFlight) {
         return false;
       }
 
-      // Auto-generate name from prompt or use default
-      const autoName = pendingIssue.userPrompt
-        ? pendingIssue.userPrompt.slice(0, 40).replace(/[^a-zA-Z0-9\s-]/g, '').trim() ||
-          (pendingIssue.issueType === 'enhancement' ? 'Enhancement' : 'Bug fix')
-        : pendingIssue.issueType === 'enhancement' ? 'Enhancement' : 'Bug fix';
-
-      // Create the issue with elements array
-      const issue: Issue = {
-        id: `issue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: pendingIssue.issueType,
-        timestamp: Date.now(),
-        name: autoName,
-        userPrompt: pendingIssue.userPrompt,
-        elements: message.elements,
-        pageUrl: message.pageUrl,
-      };
-
-      await storageManager.addIssue(session.sessionId, issue);
-
-      // Clear pending issue
-      await chrome.storage.session.remove('pendingIssue');
-
-      // Return to monitoring state
-      await sessionStateMachine.finishElementSelection();
-
-      // Check if we should auto-copy to clipboard
-      try {
-        const { autoCopyOnLog } = await chrome.storage.local.get('autoCopyOnLog');
-        // Default to true if not set
-        if (autoCopyOnLog !== false) {
-          await chrome.storage.session.set({ autoCopyIssueId: issue.id });
-        }
-      } catch {
-        // Failed to check auto-copy setting
-      }
-
-      // Check if we should auto-send BEFORE opening popup
-      // Only use the active connection - no fallback
-      let shouldAutoSend = false;
-      let autoSendConnection: Connection | undefined;
-      let autoSendType: 'opencode' | 'vscode' | undefined;
+      elementSelectionInFlight = true;
+      let guardReleased = false;
 
       try {
-        const connections = await storageManager.getConnections();
+        // Get pending issue info from session storage
+        const result = await chrome.storage.session.get('pendingIssue');
+        const pendingIssue = result.pendingIssue as {
+          userPrompt: string;
+          issueType: 'enhancement' | 'fix';
+        } | undefined;
 
-        // Find the active connection
-        autoSendConnection = connections.find(
-          (c) => c.isActive && c.enabled && c.autoSend !== false
-        );
-
-        if (autoSendConnection) {
-          if (autoSendConnection.type === 'opencode' && autoSendConnection.selectedSessionId) {
-            // Check if session is idle before sending
-            const status = await openCodeClient.getSessionStatus(
-              autoSendConnection.endpoint,
-              autoSendConnection.selectedSessionId
-            );
-            shouldAutoSend = status.type === 'idle';
-            autoSendType = 'opencode';
-
-          } else if (autoSendConnection.type === 'vscode' && autoSendConnection.selectedInstanceId) {
-            // VSCode doesn't have a busy/idle status, so we just send directly
-            shouldAutoSend = true;
-            autoSendType = 'vscode';
+        if (!pendingIssue) {
+          const currentSession = sessionStateMachine.getSession();
+          if (currentSession?.state === 'selecting_element') {
+            await sessionStateMachine.finishElementSelection();
           }
+          return false;
         }
-      } catch {
-        // Failed to check auto-send eligibility
-      }
 
-      // Set auto-sending state BEFORE opening popup so it shows loading immediately
-      if (shouldAutoSend && autoSendType) {
-        await chrome.storage.session.set({
-          autoSendingIssueId: issue.id,
-          autoSendingConnectionType: autoSendType,
-        });
-      }
+        // Auto-generate name from prompt or use default
+        const autoName = pendingIssue.userPrompt
+          ? pendingIssue.userPrompt.slice(0, 40).replace(/[^a-zA-Z0-9\s-]/g, '').trim() ||
+            (pendingIssue.issueType === 'enhancement' ? 'Enhancement' : 'Bug fix')
+          : pendingIssue.issueType === 'enhancement' ? 'Enhancement' : 'Bug fix';
 
-      // Open the extension popup
-      try {
-        await chrome.action.openPopup();
-      } catch {
-        // Could not open popup
-      }
+        // Create the issue with elements array
+        const issue: Issue = {
+          id: `issue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: pendingIssue.issueType,
+          timestamp: Date.now(),
+          name: autoName,
+          userPrompt: pendingIssue.userPrompt,
+          elements: message.elements,
+          pageUrl: message.pageUrl,
+        };
 
-      // Now do the actual auto-send
-      if (shouldAutoSend && autoSendConnection) {
+        await storageManager.addIssue(session.sessionId, issue);
+
+        // Clear pending issue
+        await chrome.storage.session.remove('pendingIssue');
+
+        // Return to monitoring state
+        await sessionStateMachine.finishElementSelection();
+
+        elementSelectionInFlight = false;
+        guardReleased = true;
+
+        // Check if we should auto-copy to clipboard
         try {
-          const markdown = await markdownExporter.exportIssue(
-            session.sessionId,
-            issue.id
+          const { autoCopyOnLog } = await chrome.storage.local.get('autoCopyOnLog');
+          // Default to true if not set
+          if (autoCopyOnLog !== false) {
+            await chrome.storage.session.set({ autoCopyIssueId: issue.id });
+          }
+        } catch {
+          // Failed to check auto-copy setting
+        }
+
+        // Check if we should auto-send BEFORE opening popup
+        // Only use the active connection - no fallback
+        let shouldAutoSend = false;
+        let autoSendConnection: Connection | undefined;
+        let autoSendType: 'opencode' | 'vscode' | undefined;
+
+        try {
+          const connections = await storageManager.getConnections();
+
+          // Find the active connection
+          autoSendConnection = connections.find(
+            (c) => c.isActive && c.enabled && c.autoSend !== false
           );
 
-          if (autoSendType === 'opencode' && autoSendConnection.selectedSessionId && autoSendConnection.selectedSessionDirectory) {
-            await openCodeClient.sendMessage(
-              autoSendConnection.endpoint,
-              autoSendConnection.selectedSessionId,
-              markdown,
-              autoSendConnection.selectedSessionDirectory
-            );
-          } else if (autoSendType === 'vscode' && autoSendConnection.selectedInstanceId && autoSendConnection.selectedInstancePort) {
-            await vsCodeClient.sendMessage(
-              autoSendConnection.selectedInstanceId,
-              autoSendConnection.selectedInstancePort,
-              markdown
-            );
-          }
+          if (autoSendConnection) {
+            if (autoSendConnection.type === 'opencode' && autoSendConnection.selectedSessionId) {
+              // Check if session is idle before sending
+              const status = await openCodeClient.getSessionStatus(
+                autoSendConnection.endpoint,
+                autoSendConnection.selectedSessionId
+              );
+              shouldAutoSend = status.type === 'idle';
+              autoSendType = 'opencode';
 
-          // Mark as exported
-          await storageManager.markIssueExported(issue.id);
-          // Clear auto-sending state on success
-          await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
-        } catch (error) {
-          console.warn('[MessageRouter] Auto-send failed:', error);
-          // Set error flag and clear sending state
-          await chrome.storage.session.set({ autoSendError: true });
-          await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
+            } else if (autoSendConnection.type === 'vscode' && autoSendConnection.selectedInstanceId) {
+              // VSCode doesn't have a busy/idle status, so we just send directly
+              shouldAutoSend = true;
+              autoSendType = 'vscode';
+            }
+          }
+        } catch {
+          // Failed to check auto-send eligibility
+        }
+
+        // Set auto-sending state BEFORE opening popup so it shows loading immediately
+        if (shouldAutoSend && autoSendType) {
+          await chrome.storage.session.set({
+            autoSendingIssueId: issue.id,
+            autoSendingConnectionType: autoSendType,
+          });
+        }
+
+        // Open the extension popup
+        try {
+          await chrome.action.openPopup();
+        } catch {
+          // Could not open popup
+        }
+
+        // Now do the actual auto-send
+        if (shouldAutoSend && autoSendConnection) {
+          try {
+            const markdown = await markdownExporter.exportIssue(
+              session.sessionId,
+              issue.id
+            );
+
+            if (autoSendType === 'opencode' && autoSendConnection.selectedSessionId && autoSendConnection.selectedSessionDirectory) {
+              await openCodeClient.sendMessage(
+                autoSendConnection.endpoint,
+                autoSendConnection.selectedSessionId,
+                markdown,
+                autoSendConnection.selectedSessionDirectory
+              );
+            } else if (autoSendType === 'vscode' && autoSendConnection.selectedInstanceId && autoSendConnection.selectedInstancePort) {
+              await vsCodeClient.sendMessage(
+                autoSendConnection.selectedInstanceId,
+                autoSendConnection.selectedInstancePort,
+                markdown
+              );
+            }
+
+            // Mark as exported
+            await storageManager.markIssueExported(issue.id);
+            // Clear auto-sending state on success
+            await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
+          } catch (error) {
+            console.warn('[MessageRouter] Auto-send failed:', error);
+            // Set error flag and clear sending state
+            await chrome.storage.session.set({ autoSendError: true });
+            await chrome.storage.session.remove(['autoSendingIssueId', 'autoSendingConnectionType']);
+          }
+        }
+
+        return true;
+      } finally {
+        if (!guardReleased) {
+          elementSelectionInFlight = false;
         }
       }
-
-      return true;
     }
 
     case 'ELEMENT_PICKER_CANCELLED': {

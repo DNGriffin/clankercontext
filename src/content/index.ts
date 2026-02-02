@@ -15,6 +15,7 @@ import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
 
 // Timeout for React source extraction (ms)
 const REACT_SOURCE_TIMEOUT = 500;
+const CONTENT_SCRIPT_INIT_FLAG = '__CLANKERCONTEXT_CONTENT_SCRIPT_INITIALIZED__';
 
 type ClickPoint = { x: number; y: number };
 type ReactSourceRequest = {
@@ -789,5 +790,8 @@ function handlePickerKeyDown(event: KeyboardEvent): void {
   }
 }
 
-// Initialize on load
-init();
+// Initialize on load (guard against duplicate injections)
+if (!(window as any)[CONTENT_SCRIPT_INIT_FLAG]) {
+  (window as any)[CONTENT_SCRIPT_INIT_FLAG] = true;
+  init();
+}
