@@ -13,7 +13,6 @@ class IconController {
    */
   async showActiveIcon(): Promise<void> {
     await this.setIcon('icons/litlogo-128.png');
-    console.log('[IconController] Showing active icon');
   }
 
   /**
@@ -21,7 +20,6 @@ class IconController {
    */
   async showSleepIcon(): Promise<void> {
     await this.setIcon('icons/asleep-128.png');
-    console.log('[IconController] Showing sleep icon');
   }
 
   /**
@@ -29,7 +27,6 @@ class IconController {
    */
   async showDefaultIcon(): Promise<void> {
     await this.setIcon('icons/icon-128.png');
-    console.log('[IconController] Showing default icon');
   }
 
   /**
@@ -47,7 +44,6 @@ class IconController {
    * Set the extension icon.
    */
   private async setIcon(path: string): Promise<void> {
-    console.log('[IconController] Setting icon to:', path);
     try {
       await chrome.action.setIcon({
         path: {
@@ -56,9 +52,8 @@ class IconController {
           '128': path,
         },
       });
-      console.log('[IconController] Icon set successfully');
-    } catch (error) {
-      console.error('[IconController] Failed to set icon:', error);
+    } catch {
+      // Failed to set icon
     }
   }
 }

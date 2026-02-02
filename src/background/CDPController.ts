@@ -51,25 +51,20 @@ class CDPController {
       await this.doDetach();
     }
 
-    console.log('[CDP] Attaching to tab:', tabId);
-
     try {
       await chrome.debugger.attach({ tabId }, '1.3');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       // If already attached (by us from before service worker restart), try to detach and reattach
       if (errorMessage.includes('Another debugger is already attached')) {
-        console.log('[CDP] Another debugger attached, attempting to take over...');
         try {
           await chrome.debugger.detach({ tabId });
           await new Promise((resolve) => setTimeout(resolve, 50));
           await chrome.debugger.attach({ tabId }, '1.3');
         } catch (retryError) {
-          console.warn('[CDP] Failed to take over debugger:', retryError);
           throw retryError;
         }
       } else {
-        console.warn('[CDP] Failed to attach:', error);
         throw error;
       }
     }
@@ -84,10 +79,8 @@ class CDPController {
       await this.sendCommand('Network.enable', {});
       await this.sendCommand('Console.enable', {});
       await this.sendCommand('Runtime.enable', {});
-      console.log('[CDP] Attached and enabled domains for tab:', tabId);
     } catch (error) {
       // If enabling domains fails, the attach might have silently failed
-      console.warn('[CDP] Failed to enable domains:', error);
       this.attachedTabId = null;
       try {
         await chrome.debugger.detach({ tabId });
@@ -133,9 +126,8 @@ class CDPController {
       await this.sendCommand('Runtime.disable', {});
 
       await chrome.debugger.detach({ tabId: this.attachedTabId });
-      console.log('[CDP] Detached from tab:', this.attachedTabId);
-    } catch (error) {
-      console.warn('[CDP] Error during detach:', error);
+    } catch {
+      // Error during detach
     } finally {
       this.attachedTabId = null;
     }
@@ -177,11 +169,9 @@ class CDPController {
    */
   private handleDebuggerDetach = (
     source: chrome.debugger.Debuggee,
-    reason: string
+    _reason: string
   ): void => {
     if (source.tabId !== this.attachedTabId) return;
-
-    console.log('[CDP] Debugger detached externally, reason:', reason);
 
     // Clean up internal state
     this.attachedTabId = null;
@@ -190,7 +180,7 @@ class CDPController {
 
     // Notify callback
     if (this.onDetachCallback) {
-      this.onDetachCallback(reason);
+      this.onDetachCallback(_reason);
     }
   };
 
@@ -255,7 +245,7 @@ class CDPController {
 
     storageManager
       .addNetworkError(session.sessionId, networkError)
-      .catch((err) => console.error('[CDP] Failed to store network error:', err));
+      .catch((error) => console.warn('[CDP] Failed to store network error:', error));
   }
 
   /**
@@ -277,7 +267,7 @@ class CDPController {
 
     storageManager
       .addNetworkError(session.sessionId, networkError)
-      .catch((err) => console.error('[CDP] Failed to store network error:', err));
+      .catch((error) => console.warn('[CDP] Failed to store network error:', error));
   }
 
   /**
@@ -324,7 +314,7 @@ class CDPController {
 
     storageManager
       .addConsoleError(session.sessionId, consoleError)
-      .catch((err) => console.error('[CDP] Failed to store console error:', err));
+      .catch((error) => console.warn('[CDP] Failed to store console error:', error));
   }
 
   /**
@@ -363,7 +353,7 @@ class CDPController {
 
     storageManager
       .addConsoleError(session.sessionId, consoleError)
-      .catch((err) => console.error('[CDP] Failed to store exception:', err));
+      .catch((error) => console.warn('[CDP] Failed to store exception:', error));
   }
 
   /**

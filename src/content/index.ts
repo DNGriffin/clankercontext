@@ -8,10 +8,22 @@
  */
 
 import type { BackgroundToContentMessage } from '@/shared/messages';
-import type { CapturedCustomAttribute, CapturedElement, CustomAttribute } from '@/shared/types';
+import type { CapturedCustomAttribute, CapturedElement, CustomAttribute, ReactSourceInfo } from '@/shared/types';
 import { normalizeAttributeName } from '@/shared/utils';
 import { getBestSelector } from './SelectorGenerator';
 import { DOM_CAPTURE_CONFIG } from '@/shared/constants';
+
+// Timeout for React source extraction (ms)
+const REACT_SOURCE_TIMEOUT = 500;
+
+type ClickPoint = { x: number; y: number };
+type ReactSourceRequest = {
+  resolve: (value: ReactSourceInfo | null) => void;
+  timeoutId: number;
+};
+
+const reactSourceRequests = new Map<string, ReactSourceRequest>();
+let reactSourceListenerInitialized = false;
 
 // State
 let elementPickerActive = false;
@@ -22,6 +34,8 @@ let tooltipElement: HTMLDivElement | null = null;
 // Multi-select state
 let selectedElements: CapturedElement[] = [];
 let selectedHighlights: HTMLDivElement[] = [];
+let selectedDOMElements: Element[] = [];
+let selectedReactSourcePromises: Array<Promise<ReactSourceInfo | null>> = [];
 
 // Custom attributes config for element capture
 let customAttributesConfig: CustomAttribute[] = [];
@@ -32,12 +46,43 @@ let quickSelectMode = false;
 // Track last click position for cursor-positioned toast
 let lastClickPosition: { x: number; y: number } = { x: 0, y: 0 };
 
+function ensureReactSourceListener(): void {
+  if (reactSourceListenerInitialized) return;
+  reactSourceListenerInitialized = true;
+  window.addEventListener('message', handleReactSourceMessage);
+}
+
+function handleReactSourceMessage(event: MessageEvent): void {
+  // Only accept messages from the same frame
+  if (event.source !== window) return;
+
+  if (event.data?.type !== 'CLANKER_REACT_SOURCE_RESULT') return;
+
+  const elementId = event.data.elementId;
+  if (typeof elementId !== 'string') return;
+
+  const pending = reactSourceRequests.get(elementId);
+  if (!pending) return;
+
+  reactSourceRequests.delete(elementId);
+  clearTimeout(pending.timeoutId);
+  pending.resolve(event.data.reactSource ?? null);
+}
+
+function cancelPendingReactRequests(): void {
+  for (const pending of reactSourceRequests.values()) {
+    clearTimeout(pending.timeoutId);
+    pending.resolve(null);
+  }
+  reactSourceRequests.clear();
+}
+
 /**
  * Initialize the content script.
  */
 function init(): void {
   chrome.runtime.onMessage.addListener(handleMessage);
-  console.log('[ClankerContext] Content script initialized');
+  ensureReactSourceListener();
 }
 
 /**
@@ -48,8 +93,6 @@ function handleMessage(
   _sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): boolean {
-  console.log('[ClankerContext] Received message:', message.type);
-
   switch (message.type) {
     case 'START_ELEMENT_PICKER':
       customAttributesConfig = message.customAttributes || [];
@@ -64,7 +107,6 @@ function handleMessage(
       break;
 
     default:
-      console.log('[ClankerContext] Unknown message type:', (message as { type: string }).type);
       sendResponse({ error: 'Unknown message type' });
   }
 
@@ -78,6 +120,18 @@ function handleMessage(
 function getModifierKeyName(): string {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   return isMac ? 'CMD' : 'CTRL';
+}
+
+/**
+ * Re-number badges on selected highlights after an element is removed.
+ */
+function updateHighlightBadges(): void {
+  selectedHighlights.forEach((highlight, index) => {
+    const badge = highlight.querySelector('div');
+    if (badge) {
+      badge.textContent = String(index + 1);
+    }
+  });
 }
 
 /**
@@ -273,6 +327,49 @@ function createConfirmationHighlight(rect: DOMRect, index: number): void {
 }
 
 /**
+ * Request React source info from the main world script via postMessage.
+ * The main world script has access to React internals via window.__REACT_DEVTOOLS_GLOBAL_HOOK__.
+ */
+function getReactSourceFromMainWorld(
+  element: Element,
+  clickPoint?: ClickPoint
+): Promise<ReactSourceInfo | null> {
+  ensureReactSourceListener();
+
+  return new Promise((resolve) => {
+    const elementId = crypto.randomUUID();
+    let x = clickPoint?.x;
+    let y = clickPoint?.y;
+
+    if (x === undefined || y === undefined) {
+      const rect = element.getBoundingClientRect();
+      x = rect.left + rect.width / 2;
+      y = rect.top + rect.height / 2;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const pending = reactSourceRequests.get(elementId);
+      if (!pending) return;
+      reactSourceRequests.delete(elementId);
+      pending.resolve(null);
+    }, REACT_SOURCE_TIMEOUT);
+
+    reactSourceRequests.set(elementId, { resolve, timeoutId });
+
+    // Send request to main world script
+    window.postMessage(
+      {
+        type: 'CLANKER_GET_REACT_SOURCE',
+        elementId,
+        x,
+        y,
+      },
+      '*'
+    );
+  });
+}
+
+/**
  * Find a custom attribute value on or near an element.
  * Searches based on the configured direction: parent, descendant, or both.
  */
@@ -334,9 +431,9 @@ function findCustomAttribute(
 }
 
 /**
- * Capture element data (HTML and selector).
+ * Capture element data (HTML, selector, and custom attributes).
  */
-function captureElement(element: Element): CapturedElement {
+function captureElementBase(element: Element): CapturedElement {
   let html = element.outerHTML;
   if (html.length > DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) {
     html = html.substring(0, DOM_CAPTURE_CONFIG.MAX_OUTER_HTML_LENGTH) + '<!-- truncated -->';
@@ -357,9 +454,25 @@ function captureElement(element: Element): CapturedElement {
 }
 
 /**
+ * Kick off React source capture without blocking UI interactions.
+ */
+function startReactCapture(
+  element: Element,
+  captured: CapturedElement,
+  clickPoint?: ClickPoint
+): Promise<ReactSourceInfo | null> {
+  return getReactSourceFromMainWorld(element, clickPoint).then((reactSource) => {
+    if (reactSource) {
+      captured.reactSource = reactSource;
+    }
+    return reactSource;
+  });
+}
+
+/**
  * Finish element selection and send data to background.
  */
-function finishSelection(): void {
+async function finishSelection(): Promise<void> {
   if (selectedElements.length === 0) {
     cancelElementPicker();
     return;
@@ -367,7 +480,7 @@ function finishSelection(): void {
 
   // Save elements before cleanup (cleanup resets the array)
   const elementsToSend = [...selectedElements];
-  const elementCount = elementsToSend.length;
+  const reactPromises = [...selectedReactSourcePromises];
   const isQuickSelect = quickSelectMode;
 
   // Collect rects from selected highlights BEFORE cleanup
@@ -390,6 +503,9 @@ function finishSelection(): void {
     createConfirmationHighlight(rect, index);
   });
 
+  // Wait for any pending React source extraction (bounded by timeout)
+  await Promise.allSettled(reactPromises);
+
   // Send to background
   if (isQuickSelect) {
     chrome.runtime.sendMessage({
@@ -399,21 +515,19 @@ function finishSelection(): void {
     });
     // Show toast notification on the page
     showCopiedToast();
-    console.log('[ClankerContext] Quick select completed:', elementCount, 'elements');
   } else {
     chrome.runtime.sendMessage({
       type: 'ELEMENT_SELECTED',
       elements: elementsToSend,
       pageUrl: window.location.href,
     });
-    console.log('[ClankerContext] Elements selected:', elementCount);
   }
 }
 
 /**
  * Clean up all picker UI elements.
  */
-function cleanupPicker(): void {
+function cleanupPicker(options: { cancelPendingReact?: boolean } = {}): void {
   elementPickerActive = false;
 
   // Remove main picker elements
@@ -427,10 +541,16 @@ function cleanupPicker(): void {
 
   // Reset state
   selectedElements = [];
+  selectedDOMElements = [];
+  selectedReactSourcePromises = [];
   overlayElement = null;
   highlightElement = null;
   tooltipElement = null;
   quickSelectMode = false;
+
+  if (options.cancelPendingReact) {
+    cancelPendingReactRequests();
+  }
 
   // Remove event listeners (must match capture phase)
   document.removeEventListener('mousemove', handlePickerMouseMove, true);
@@ -442,16 +562,12 @@ function cleanupPicker(): void {
  * Start the element picker for issue capture.
  */
 function startElementPicker(): void {
-  console.log('[ClankerContext] Starting element picker');
-
   if (elementPickerActive) {
-    console.log('[ClankerContext] Element picker already active');
     return;
   }
 
   // Ensure body exists
   if (!document.body) {
-    console.error('[ClankerContext] document.body not available');
     return;
   }
 
@@ -464,6 +580,8 @@ function startElementPicker(): void {
   // Reset multi-select state
   selectedElements = [];
   selectedHighlights = [];
+  selectedDOMElements = [];
+  selectedReactSourcePromises = [];
 
   elementPickerActive = true;
 
@@ -525,8 +643,6 @@ function startElementPicker(): void {
   document.addEventListener('mousemove', handlePickerMouseMove, true);
   document.addEventListener('mousedown', handlePickerClick, true);
   document.addEventListener('keydown', handlePickerKeyDown, true);
-
-  console.log('[ClankerContext] Element picker started');
 }
 
 /**
@@ -535,11 +651,9 @@ function startElementPicker(): void {
 function cancelElementPicker(): void {
   if (!elementPickerActive) return;
 
-  cleanupPicker();
+  cleanupPicker({ cancelPendingReact: true });
 
   chrome.runtime.sendMessage({ type: 'ELEMENT_PICKER_CANCELLED' });
-
-  console.log('[ClankerContext] Element picker cancelled');
 }
 
 /**
@@ -599,7 +713,7 @@ function handlePickerMouseMove(event: MouseEvent): void {
 /**
  * Handle click during element picking.
  */
-async function handlePickerClick(event: MouseEvent): Promise<void> {
+function handlePickerClick(event: MouseEvent): void {
   if (!elementPickerActive) return;
 
   event.preventDefault();
@@ -611,32 +725,51 @@ async function handlePickerClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  // Capture element data
-  const captured = captureElement(element);
-
-  // Add to selected elements
-  selectedElements.push(captured);
-
   // Check if CTRL/CMD is held for multi-select
   const isMultiSelect = event.ctrlKey || event.metaKey;
 
+  const clickPoint = { x: event.clientX, y: event.clientY };
+
   // Save cursor position for toast positioning (used for both single and multi-select)
-  lastClickPosition = { x: event.clientX, y: event.clientY };
+  lastClickPosition = clickPoint;
 
   if (isMultiSelect) {
-    // Multi-select: create persistent highlight
-    const highlight = createSelectedHighlight(element, selectedElements.length - 1);
-    selectedHighlights.push(highlight);
-    updateTooltip();
-  } else {
-    // Single-select: create highlight and add to array so finishSelection() handles
-    // the confirmation highlight creation (ensures consistent animation for all elements)
-    const highlight = createSelectedHighlight(element, selectedElements.length - 1);
-    selectedHighlights.push(highlight);
-    finishSelection();
-  }
+    // Check if element is already selected
+    const existingIndex = selectedDOMElements.indexOf(element);
 
-  console.log('[ClankerContext] Element added to selection:', captured.selector);
+    if (existingIndex !== -1) {
+      // Deselect: remove from all arrays
+      selectedElements.splice(existingIndex, 1);
+      selectedDOMElements.splice(existingIndex, 1);
+      selectedReactSourcePromises.splice(existingIndex, 1);
+      const [removedHighlight] = selectedHighlights.splice(existingIndex, 1);
+      removedHighlight.remove();
+
+      // Re-number remaining badges
+      updateHighlightBadges();
+      updateTooltip();
+    } else {
+      // Select: capture and add to arrays
+      const captured = captureElementBase(element);
+      const reactPromise = startReactCapture(element, captured, clickPoint);
+      selectedElements.push(captured);
+      selectedDOMElements.push(element);
+      selectedReactSourcePromises.push(reactPromise);
+      const highlight = createSelectedHighlight(element, selectedElements.length - 1);
+      selectedHighlights.push(highlight);
+      updateTooltip();
+    }
+  } else {
+    // Single-select: capture element, create highlight and finish
+    const captured = captureElementBase(element);
+    const reactPromise = startReactCapture(element, captured, clickPoint);
+    selectedElements.push(captured);
+    selectedDOMElements.push(element);
+    selectedReactSourcePromises.push(reactPromise);
+    const highlight = createSelectedHighlight(element, selectedElements.length - 1);
+    selectedHighlights.push(highlight);
+    void finishSelection();
+  }
 }
 
 /**
@@ -652,7 +785,7 @@ function handlePickerKeyDown(event: KeyboardEvent): void {
   } else if (event.key === 'Enter' && selectedElements.length > 0) {
     event.preventDefault();
     event.stopPropagation();
-    finishSelection();
+    void finishSelection();
   }
 }
 

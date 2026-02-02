@@ -71,8 +71,8 @@ export function CustomAttributeForm({
       await navigator.clipboard.writeText(templateSyntax);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (e) {
-      console.error('Failed to copy:', e);
+    } catch {
+      // Failed to copy
     }
   };
 

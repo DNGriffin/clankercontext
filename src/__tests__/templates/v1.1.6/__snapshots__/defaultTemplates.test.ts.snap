@@ -1,0 +1,147 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Default Templates v1.1.6 Snapshot Tests should match snapshot for enhancement template: enhancement-template 1`] = `
+"# Enhancement
+
+## Your Task
+The user wants to add or change functionality on their web page. Review the context below and implement the requested enhancement.
+
+## What the User Wants
+> Add a dark mode toggle button to the header
+
+## Context
+**Page URL:** \`https://example.com/dashboard\`
+
+## Target Element(s)
+
+The user selected the following element(s) as the focus of their request:
+
+\`\`\`html
+<header class="site-header">
+<nav>...</nav>
+</header>
+\`\`\`
+
+**CSS Selector:** \`header.site-header\`
+
+Use these element(s) as reference for where to apply the enhancement. You may need to modify these elements, their parents, or add sibling elements.
+
+
+
+
+
+## Summary
+
+**Type:** Enhancement
+
+**Suggested approach:**
+1. Locate the target element in the codebase using the CSS selector
+2. Understand the current behavior and surrounding code
+3. Implement the requested enhancement
+4. Test that existing functionality is not broken
+"
+`;
+
+exports[`Default Templates v1.1.6 Snapshot Tests should match snapshot for fix template with errors: fix-template-with-errors 1`] = `
+"# Bug Fix
+
+## Your Task
+The user has identified a bug that needs fixing. Review the context below, identify the root cause, and implement a fix.
+
+## What the User Wants
+> The login button does not respond when clicked
+
+## Context
+**Page URL:** \`https://example.com/login\`
+
+## Target Element(s)
+
+The user selected the following element(s) as the focus of their request:
+
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+**CSS Selector:** \`#login-btn\`
+
+These element(s) may be the source of the bug, or closely related to it. Inspect their attributes, event handlers, and parent/child relationships.
+
+
+## Console Errors
+
+**1 error(s) detected.** These may indicate the root cause of the issue:
+
+### Error
+\`\`\`
+Uncaught TypeError: Cannot read property 'click' of undefined
+\`\`\`
+
+**Stack trace:**
+\`\`\`
+at handleClick (app.js:42:15)
+    at HTMLButtonElement.<anonymous> (app.js:50:10)
+\`\`\`
+**Source:** \`https://example.com/app.js:42\`
+
+
+
+## Failed Network Requests
+
+**1 failed request(s).** These may indicate API issues, missing resources, or server errors:
+
+| Status | Method | URL |
+|--------|--------|-----|
+| 500 | POST | \`https://api.example.com/auth/login\` |
+
+
+## Summary
+
+**Type:** Bug Fix
+
+**Suggested approach:**
+1. Review the error messages and stack traces for clues
+2. Locate the target element and related code
+3. Identify the root cause of the issue
+4. Implement and test the fix
+"
+`;
+
+exports[`Default Templates v1.1.6 Snapshot Tests should match snapshot for fix template without errors: fix-template-without-errors 1`] = `
+"# Bug Fix
+
+## Your Task
+The user has identified a bug that needs fixing. Review the context below, identify the root cause, and implement a fix.
+
+## What the User Wants
+> The login button does not respond when clicked
+
+## Context
+**Page URL:** \`https://example.com/login\`
+
+## Target Element(s)
+
+The user selected the following element(s) as the focus of their request:
+
+\`\`\`html
+<button id="login-btn" class="btn primary">Login</button>
+\`\`\`
+
+**CSS Selector:** \`#login-btn\`
+
+These element(s) may be the source of the bug, or closely related to it. Inspect their attributes, event handlers, and parent/child relationships.
+
+
+
+
+
+## Summary
+
+**Type:** Bug Fix
+
+**Suggested approach:**
+1. Review the error messages and stack traces for clues
+2. Locate the target element and related code
+3. Identify the root cause of the issue
+4. Implement and test the fix
+"
+`;

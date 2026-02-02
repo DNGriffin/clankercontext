@@ -1,7 +1,7 @@
-import type { CapturedElement, ConsoleError, Issue, NetworkError } from '@/shared/types';
+import type { CapturedElement, ConsoleError, Issue, NetworkError, ReactSourceInfo } from '@/shared/types';
 import { storageManager } from '@/background/StorageManager';
 import { DEFAULT_PROMPT_TEMPLATES } from '@/prompts/templates';
-import { renderTemplate, type TemplateContext } from '@/exporter/PromptTemplateRenderer';
+import { renderTemplate, type TemplateContextWithArrays, type TemplateArrayItem } from '@/exporter/PromptTemplateRenderer';
 
 /**
  * Markdown exporter for generating LLM-friendly issue reports.
@@ -46,7 +46,7 @@ class MarkdownExporter {
     issue: Issue,
     consoleErrors: ConsoleError[],
     networkErrors: NetworkError[]
-  ): TemplateContext {
+  ): TemplateContextWithArrays {
     const isEnhancement = issue.type === 'enhancement';
     const issueName = issue.name || 'Untitled';
     const elementCount = issue.elements.length;
@@ -97,8 +97,108 @@ class MarkdownExporter {
       network_errors_present: networkErrors.length > 0,
       network_errors_table: networkErrorsTable,
       errors_present: hasErrors,
+      elements: this.buildElementsArray(issue.elements),
       ...this.buildCustomAttributeTokens(issue.elements),
     };
+  }
+
+  /**
+   * Detect if React source info appears to be from a minified build.
+   * If 3+ components in the stack have very short names (≤2 chars),
+   * it's likely minified and we should suppress the output.
+   */
+  private isLikelyMinified(reactSource: ReactSourceInfo): boolean {
+    const shortNameCount = reactSource.componentStack.filter(
+      (name) => name.length <= 2
+    ).length;
+
+    // Also check the main component name
+    const mainNameShort = reactSource.componentName !== null && reactSource.componentName.length <= 2;
+    const totalShort = shortNameCount + (mainNameShort ? 1 : 0);
+
+    return totalShort >= 3;
+  }
+
+  /**
+   * Build an array of element objects for {{#each elements}} iteration.
+   * Each element includes HTML, selector, and React source tokens.
+   */
+  private buildElementsArray(elements: CapturedElement[]): TemplateArrayItem[] {
+    return elements.map((element) => {
+      const reactTokens = this.buildSingleElementReactTokens(element);
+      const customAttrTokens = this.buildSingleElementCustomAttributes(element);
+
+      return {
+        html: this.formatHTML(element.html),
+        html_raw: element.html,
+        selector: element.selector,
+        ...reactTokens,
+        ...customAttrTokens,
+      };
+    });
+  }
+
+  /**
+   * Build React source tokens for a single element.
+   */
+  private buildSingleElementReactTokens(element: CapturedElement): Record<string, string | boolean> {
+    const reactSource = element.reactSource;
+
+    // Return empty if no source OR if it looks minified
+    if (!reactSource || this.isLikelyMinified(reactSource)) {
+      return {
+        react_source_present: false,
+        'react.component_name': '',
+        'react.file_path': '',
+        'react.line_number': '',
+        'react.column_number': '',
+        'react.component_stack': '',
+        'react.file_location': '',
+      };
+    }
+
+    // Build file location string (e.g., "components/Button.tsx:42")
+    let fileLocation = '';
+    if (reactSource.filePath) {
+      fileLocation = reactSource.filePath;
+      if (reactSource.lineNumber) {
+        fileLocation += `:${reactSource.lineNumber}`;
+        if (reactSource.columnNumber) {
+          fileLocation += `:${reactSource.columnNumber}`;
+        }
+      }
+    }
+
+    // Build component stack string
+    const componentStackStr = reactSource.componentStack.length > 0
+      ? reactSource.componentStack.map((name) => `  → ${name}`).join('\n')
+      : '';
+
+    return {
+      react_source_present: true,
+      'react.component_name': reactSource.componentName || '',
+      'react.file_path': reactSource.filePath || '',
+      'react.line_number': reactSource.lineNumber?.toString() || '',
+      'react.column_number': reactSource.columnNumber?.toString() || '',
+      'react.component_stack': componentStackStr,
+      'react.file_location': fileLocation,
+    };
+  }
+
+  /**
+   * Build custom attribute tokens for a single element.
+   */
+  private buildSingleElementCustomAttributes(element: CapturedElement): Record<string, string | boolean> {
+    const tokens: Record<string, string | boolean> = {};
+
+    if (element.customAttributes) {
+      for (const attr of element.customAttributes) {
+        tokens[attr.tokenName] = attr.value;
+        tokens[`${attr.tokenName}_present`] = true;
+      }
+    }
+
+    return tokens;
   }
 
   /**
@@ -127,6 +227,30 @@ class MarkdownExporter {
     }
 
     return tokens;
+  }
+
+  /**
+   * Build markdown for quick select mode using the customizable template.
+   */
+  async buildQuickSelectMarkdown(elements: CapturedElement[], pageUrl: string): Promise<string> {
+    const storedTemplate = await storageManager.getPromptTemplate('quickSelect');
+    const template = storedTemplate?.content || DEFAULT_PROMPT_TEMPLATES.quickSelect;
+    const context = this.buildQuickSelectContext(elements, pageUrl);
+    return renderTemplate(template, context);
+  }
+
+  /**
+   * Build template context for quick select mode.
+   * Only includes element-related tokens (no console/network errors, no issue info).
+   */
+  private buildQuickSelectContext(elements: CapturedElement[], pageUrl: string): TemplateContextWithArrays {
+    return {
+      page_url: pageUrl,
+      elements_count: elements.length,
+      elements_multiple: elements.length > 1,
+      elements: this.buildElementsArray(elements),
+      ...this.buildCustomAttributeTokens(elements),
+    };
   }
 
   public buildElementsMarkdown(elements: CapturedElement[]): string {

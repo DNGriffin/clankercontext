@@ -4,10 +4,10 @@ import type {
   ConsoleError,
   CustomAttribute,
   Issue,
-  IssueType,
   MonitoringSession,
   NetworkError,
   PromptTemplate,
+  TemplateType,
 } from '@/shared/types';
 
 /**
@@ -424,7 +424,7 @@ class StorageManager {
     });
   }
 
-  async getPromptTemplate(type: IssueType): Promise<PromptTemplate | null> {
+  async getPromptTemplate(type: TemplateType): Promise<PromptTemplate | null> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(IDB_CONFIG.STORES.PROMPT_TEMPLATES, 'readonly');
@@ -441,7 +441,7 @@ class StorageManager {
     return this.put(IDB_CONFIG.STORES.PROMPT_TEMPLATES, template);
   }
 
-  async deletePromptTemplate(type: IssueType): Promise<void> {
+  async deletePromptTemplate(type: TemplateType): Promise<void> {
     return this.delete(IDB_CONFIG.STORES.PROMPT_TEMPLATES, type);
   }
 
@@ -537,7 +537,6 @@ class StorageManager {
     await this.addConnection(vsCodeConnection);
     await chrome.storage.local.set({ defaultConnectionsInitialized: true });
 
-    console.log('[StorageManager] Default connections initialized');
     return true;
   }
 }

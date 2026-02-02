@@ -1,8 +1,9 @@
-import type { IssueType } from '@/shared/types';
+import type { TemplateType } from '@/shared/types';
 
-export const PROMPT_TEMPLATE_LABELS: Record<IssueType, string> = {
+export const PROMPT_TEMPLATE_LABELS: Record<TemplateType, string> = {
   fix: 'Fix',
   enhancement: 'Modify',
+  quickSelect: 'Quick Select',
 };
 
 const FIX_TEMPLATE = `# Bug Fix
@@ -18,12 +19,24 @@ The user has identified a bug that needs fixing. Review the context below, ident
 
 ## Target Element(s)
 
-The user selected the following element(s) as the focus of their request:
+The user selected the following element(s) as the focus of their request. These element(s) may be the source of the bug, or closely related to it. Inspect their attributes, event handlers, and parent/child relationships.
 
-{{elements_markdown}}
+{{#each elements}}
+### Element {{@number}}
 
-These element(s) may be the source of the bug, or closely related to it. Inspect their attributes, event handlers, and parent/child relationships.
+\`\`\`html
+{{element.html}}
+\`\`\`
 
+**CSS Selector:** \`{{element.selector}}\`
+
+{{#element.react_source_present}}
+**React Component:** \`{{element.react.component_name}}\` at \`{{element.react.file_location}}\`
+
+**Component Stack:**
+{{element.react.component_stack}}
+{{/element.react_source_present}}
+{{/each}}
 {{#console_errors_present}}
 ## Console Errors
 
@@ -66,12 +79,24 @@ The user wants to add or change functionality on their web page. Review the cont
 
 ## Target Element(s)
 
-The user selected the following element(s) as the focus of their request:
+The user selected the following element(s) as the focus of their request. Use these element(s) as reference for where to apply the enhancement. You may need to modify these elements, their parents, or add sibling elements.
 
-{{elements_markdown}}
+{{#each elements}}
+### Element {{@number}}
 
-Use these element(s) as reference for where to apply the enhancement. You may need to modify these elements, their parents, or add sibling elements.
+\`\`\`html
+{{element.html}}
+\`\`\`
 
+**CSS Selector:** \`{{element.selector}}\`
+
+{{#element.react_source_present}}
+**React Component:** \`{{element.react.component_name}}\` at \`{{element.react.file_location}}\`
+
+**Component Stack:**
+{{element.react.component_stack}}
+{{/element.react_source_present}}
+{{/each}}
 {{#console_errors_present}}
 ## Console Errors
 
@@ -101,7 +126,26 @@ Use these element(s) as reference for where to apply the enhancement. You may ne
 4. Test that existing functionality is not broken
 `;
 
-export const DEFAULT_PROMPT_TEMPLATES: Record<IssueType, string> = {
+const QUICK_SELECT_TEMPLATE = `{{#each elements}}
+## Element {{@number}}
+
+\`\`\`html
+{{element.html}}
+\`\`\`
+
+**CSS Selector:** \`{{element.selector}}\`
+
+{{#element.react_source_present}}
+**React Component:** \`{{element.react.component_name}}\` at \`{{element.react.file_location}}\`
+
+**Component Stack:**
+{{element.react.component_stack}}
+{{/element.react_source_present}}
+{{/each}}
+`;
+
+export const DEFAULT_PROMPT_TEMPLATES: Record<TemplateType, string> = {
   fix: FIX_TEMPLATE,
   enhancement: ENHANCEMENT_TEMPLATE,
+  quickSelect: QUICK_SELECT_TEMPLATE,
 };

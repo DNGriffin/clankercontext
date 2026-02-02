@@ -4,6 +4,9 @@ export type SessionState = 'idle' | 'monitoring' | 'selecting_element';
 // Issue Types
 export type IssueType = 'enhancement' | 'fix';
 
+// Template Types (extends IssueType to include quick select)
+export type TemplateType = IssueType | 'quickSelect';
+
 // Custom Attribute Search Direction
 export type AttributeSearchDirection = 'parent' | 'descendant' | 'both';
 
@@ -24,9 +27,18 @@ export interface CapturedCustomAttribute {
   foundOn: 'selected' | 'parent' | 'descendant';
 }
 
+// React source location info (from bippy)
+export interface ReactSourceInfo {
+  componentName: string | null;
+  filePath: string | null;
+  lineNumber: number | null;
+  columnNumber: number | null;
+  componentStack: string[]; // Full component ancestry
+}
+
 // Prompt template stored in IndexedDB
 export interface PromptTemplate {
-  type: IssueType;
+  type: TemplateType;
   content: string;
   updatedAt: number;
 }
@@ -36,6 +48,7 @@ export interface CapturedElement {
   html: string;      // outerHTML of the element
   selector: string;  // CSS selector for reference
   customAttributes?: CapturedCustomAttribute[];  // Captured custom attributes
+  reactSource?: ReactSourceInfo;  // React component source info (if available)
 }
 
 // Issue - captured bug or enhancement request

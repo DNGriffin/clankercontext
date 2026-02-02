@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
-import type { Connection, CustomAttribute, IssueType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
+import { ArrowLeft, Plus, Loader2, AlertCircle, ChevronDown, ChevronRight, ExternalLink, Sparkles, Wrench, MousePointer2, Copy } from 'lucide-react';
+import type { Connection, CustomAttribute, TemplateType, OpenCodeSession, VSCodeInstance } from '@/shared/types';
 import type { ConnectionsResponse, ConnectionMutationResponse, CustomAttributesResponse, CustomAttributeMutationResponse, TestConnectionResponse } from '@/shared/messages';
 import { storageManager } from '@/background/StorageManager';
 import { PROMPT_TEMPLATE_LABELS } from '@/prompts/templates';
@@ -14,17 +14,17 @@ import { CustomAttributeForm } from './components/CustomAttributeForm';
 
 interface SettingsViewProps {
   onBack: () => void;
-  onEditPrompt: (type: IssueType) => void;
+  onEditPrompt: (type: TemplateType) => void;
 }
 
 interface PromptTemplateState {
-  type: IssueType;
+  type: TemplateType;
   label: string;
   isCustom: boolean;
   updatedAt?: number;
 }
 
-const PROMPT_TEMPLATE_ORDER: IssueType[] = ['enhancement', 'fix'];
+const PROMPT_TEMPLATE_ORDER: TemplateType[] = ['enhancement', 'fix', 'quickSelect'];
 
 export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React.ReactElement {
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -153,8 +153,8 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
         const result = await chrome.storage.local.get('autoCopyOnLog');
         // Default to true if not set
         setAutoCopyOnLog(result.autoCopyOnLog !== false);
-      } catch (e) {
-        console.error('Failed to load auto-copy setting:', e);
+      } catch {
+        // Failed to load auto-copy setting
       } finally {
         setAutoCopyLoading(false);
       }
@@ -466,7 +466,7 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
         </div>
       )}
 
-      <section className="mb-3">
+      <section className="mb-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Connections
@@ -536,15 +536,15 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
       <section className="mb-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Prompts
+            Prompt Templates
           </span>
           <Button
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0"
             onClick={() => setPromptsOpen((prev) => !prev)}
-            title={promptsOpen ? 'Collapse prompts' : 'Expand prompts'}
-            aria-label={promptsOpen ? 'Collapse prompts' : 'Expand prompts'}
+            title={promptsOpen ? 'Collapse prompt templates' : 'Expand prompt templates'}
+            aria-label={promptsOpen ? 'Collapse prompt templates' : 'Expand prompt templates'}
           >
             {promptsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </Button>
@@ -556,26 +556,30 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col border rounded-md divide-y">
               {promptTemplates.map((template) => {
                 const lastUpdated = template.updatedAt
-                  ? new Date(template.updatedAt).toLocaleString()
+                  ? new Date(template.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                   : null;
-                const status = template.isCustom
-                  ? `Custom${lastUpdated ? ` - Updated ${lastUpdated}` : ''}`
-                  : 'Default';
+                const Icon = template.type === 'enhancement' ? Sparkles
+                  : template.type === 'fix' ? Wrench
+                  : MousePointer2;
                 return (
                   <div
                     key={template.type}
-                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                    className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/50"
                   >
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{template.label} prompt</span>
-                      <span className="text-[11px] text-muted-foreground">{status}</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="text-sm font-medium whitespace-nowrap">{template.label}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${template.isCustom ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                        {template.isCustom ? (lastUpdated ? `Custom - ${lastUpdated}` : 'Custom') : 'Default'}
+                      </span>
                     </div>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
+                      className="h-6 px-2 text-xs"
                       onClick={() => onEditPrompt(template.type)}
                     >
                       Edit
@@ -611,19 +615,19 @@ export function SettingsView({ onBack, onEditPrompt }: SettingsViewProps): React
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-                <div className="flex flex-col">
+            <div className="flex flex-col border rounded-md divide-y">
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-muted/50">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Copy className="h-3.5 w-3.5 shrink-0" />
                   <span className="text-sm font-medium">Auto Copy Context</span>
-                  <span className="text-[11px] text-muted-foreground">
-                    Automatically copy context to clipboard after logging an issue
-                  </span>
+                  <span className="text-xs text-muted-foreground hidden sm:inline">on log</span>
                 </div>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={autoCopyOnLog}
                   onClick={handleAutoCopyToggle}
+                  title="Automatically copy context to clipboard after logging an issue"
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     autoCopyOnLog ? 'bg-primary' : 'bg-input'
                   }`}
