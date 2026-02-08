@@ -3,10 +3,10 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'ClankerContext',
   description: 'Documentation for ClankerContext — a Chrome Extension that generates LLM-optimized context for AI coding tools.',
-  base: '/clankercontext/docs/',
+  base: '/docs/',
 
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/clankercontext/docs/icon.png' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/docs/icon.png' }],
   ],
 
   themeConfig: {
