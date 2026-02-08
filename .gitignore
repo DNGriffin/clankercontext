@@ -24,3 +24,8 @@ npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Docs build
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+_site/

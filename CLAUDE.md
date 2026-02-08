@@ -4,114 +4,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ClankerContext is a Chrome Extension (Manifest V3) that generates LLM-optimized context for agentic coding tools (Claude Code, Cursor, OpenCode). Users can log enhancement requests or bug reports by selecting page elements, and the extension exports markdown files containing all the context an AI coding agent needs to understand and fix the issue.
+ClankerContext is a Chrome Extension (Manifest V3) that generates LLM-optimized context for AI coding tools. Users capture frontend bugs and enhancement requests by selecting page elements, and the extension exports markdown containing everything an AI assistant needs to understand and fix the issue. 100% client-side — no server communication.
 
-## Build Commands
+## Build & Development Commands
 
 ```bash
-npm run build      # TypeScript check + Vite build to dist/
-npm run dev        # Watch mode build
-npm run typecheck  # TypeScript only (no emit)
-npm run lint       # ESLint
+npm run build         # TypeScript check + Vite production build → dist/
+npm run dev           # Watch mode build (auto-rebuilds on changes)
+npm run typecheck     # TypeScript type checking only (no emit)
+npm run lint          # ESLint on src/**/*.ts,.tsx
+npm run test          # Run Jest tests
+npm run test:watch    # Run tests in watch mode
+npx jest path/to/test # Run a single test file
 ```
 
-After building, load `dist/` as an unpacked extension in Chrome.
+After building, load `dist/` as an unpacked extension at `chrome://extensions/` (Developer mode).
 
 ## Architecture
 
-### Extension Components (MV3)
+### Build Pipeline (vite.config.ts)
+
+Three separate build steps run in sequence:
+1. **Main build** — popup HTML + background service worker (ES modules)
+2. **Content script** — IIFE bundle (`content.js`, runs in ISOLATED world)
+3. **React extractor** — IIFE bundle (`react-extractor.js`, runs in MAIN world to access React internals)
+
+### Extension Components
+
+**Background Service Worker (`src/background/`)**
+- `index.ts` — Entry point, orchestrates all background logic
+- `SessionStateMachine.ts` — Session lifecycle: `idle` → `monitoring` → `selecting_element`
+- `CDPController.ts` — Chrome DevTools Protocol for console/network error capture (uses mutex for concurrent safety)
+- `StorageManager.ts` — IndexedDB persistence (DB: `ClankerContextDB`, version 6). Stores: sessions, issues, console_errors, network_errors, connections, prompt_templates, custom_attributes
+- `MessageRouter.ts` — Routes all Chrome message passing between popup, background, and content scripts. Tracks content script injection per tab
+- `IconController.ts` — Extension icon states: active (cycling animation), paused (sleeping), inactive
+- `OpenCodeClient.ts` — HTTP client for OpenCode integration
+- `VSCodeClient.ts` — HTTP client for VSCode/Copilot integration
+
+**Content Script (`src/content/`)**
+- `index.ts` — Element picker overlay with multi-select (Ctrl/Cmd+click), toast notifications, numbered badges. Runs in ISOLATED world
+- `SelectorGenerator.ts` — CSS selector generation. Priority: data-testid → ID → aria-label → CSS path
+- `react-extractor.ts` — Extracts React component name, file path, line number, and component stack via `bippy`. Runs in MAIN world (accesses `__REACT_DEVTOOLS_GLOBAL_HOOK__`). Communicates with content script via `window.postMessage`
+
+**Popup UI (`src/popup/`)** — React + Tailwind CSS
+- `Popup.tsx` — Main view: session control, issue list, export
+- `SettingsView.tsx` — Connections, custom attributes, auto-copy toggle
+- `PromptEditView.tsx` — Custom prompt template editor
+
+**Exporter (`src/exporter/`)**
+- `MarkdownExporter.ts` — Generates LLM-optimized markdown from issue data
+- `PromptTemplateRenderer.ts` — Handlebars-like template engine supporting `{{tokens}}`, `{{#conditional}}...{{/conditional}}`, and `{{#each array}}...{{/each}}`
+
+**Shared (`src/shared/`)** — Types, message definitions, constants shared across all components
+
+**Prompt Templates (`src/prompts/templates.ts`)** — Default templates for fix, enhancement, and quick select exports
+
+### Message Flow
 
 ```
-Background Service Worker (src/background/)
-├── SessionStateMachine.ts  - Session state: idle → monitoring → selecting_element
-├── MessageRouter.ts        - Chrome message handling between all components
-├── CDPController.ts        - Chrome DevTools Protocol for console/network error capture
-└── StorageManager.ts       - IndexedDB for issues, errors, sessions
-
-Note: Extension has zero background footprint until user clicks "Start listening".
-Pausing detaches CDP and stops all monitoring.
-
-Content Script (src/content/)
-├── index.ts               - Element picker overlay and message handling
-└── SelectorGenerator.ts   - CSS selector generation (data-testid, id, ARIA, path-based)
-
-Popup UI (src/popup/)
-└── Popup.tsx              - React UI for logging issues and exporting
-
-Exporter (src/exporter/)
-└── MarkdownExporter.ts    - Generates LLM-optimized markdown reports
+Popup (React) ←→ MessageRouter (background) ←→ Content Script (ISOLATED world)
+                         ↕                              ↕ (postMessage)
+                   StorageManager                React Extractor (MAIN world)
+                   CDPController
+                   OpenCodeClient / VSCodeClient
 ```
 
-### User Flow
-
-1. User opens extension popup
-2. Clicks "Start listening" to begin monitoring (extension does nothing until this step)
-3. Clicks "Modify with AI" or "Fix with AI"
-4. Enters description of what they want
-5. Clicks "Select Element" → element picker overlay appears on page
-6. User clicks the relevant element
-7. Issue is logged with element HTML, selector, console errors, and failed network requests
-8. Popup automatically reopens showing logged issues
-9. User can export individual issues or all issues as markdown (download or clipboard)
-10. User can pause/resume monitoring via header button (paused = no background activity)
+All inter-component communication uses typed messages defined in `src/shared/messages.ts`.
 
 ### Data Flow
 
-1. **START_LISTENING** → Creates session, attaches CDP for error capture
-2. **PAUSE_LISTENING** → Detaches CDP, stops all monitoring
-3. **RESUME_LISTENING** → Re-attaches CDP, resumes monitoring
-4. **START_ISSUE** → Injects content script, shows element picker overlay
-5. **ELEMENT_SELECTED** → Captures element HTML + selector, creates Issue in IndexedDB, reopens popup
-6. **EXPORT_ISSUE** → MarkdownExporter generates LLM-optimized markdown
+1. **START_LISTENING** → Creates session, attaches CDP
+2. **PAUSE_LISTENING** / **RESUME_LISTENING** → Detaches/re-attaches CDP
+3. **START_ISSUE** → Injects content script, shows element picker overlay
+4. **ELEMENT_SELECTED** → Captures element HTML + selector + React source + custom attributes → creates Issue in IndexedDB → reopens popup
+5. **QUICK_SELECT** → Element picker without session; copies directly to clipboard
+6. **EXPORT_ISSUE** → MarkdownExporter renders template → clipboard or download
+7. **SEND_TO_OPENCODE** / **SEND_TO_VSCODE** → Exports and sends via HTTP client
 
 ### Tab Switching
 
-When the user switches tabs (and not paused):
-- CDP detaches from old tab
-- Error logs are cleared (issues preserved)
-- Session switches to new tab
-- CDP attaches to new tab
-
-## Markdown Output Format
-
-Each issue exports as a markdown file containing:
-- Task description (enhancement vs bug fix)
-- User's description/prompt
-- Target element HTML and CSS selector
-- Console errors with stack traces (captured during session)
-- Failed network requests (non-2XX status codes)
-- Suggested approach for the AI agent
+When user switches tabs (and not paused): CDP detaches from old tab, error logs are cleared (issues preserved), CDP attaches to new tab.
 
 ## Key Implementation Details
 
-### Service Worker Constraints (MV3)
-- No `URL.createObjectURL` - use data URLs for downloads
-- Can be terminated - use IndexedDB for persistence
-- Session state survives via `chrome.storage.session`
-- Pause state stored in `chrome.storage.session` (isPaused flag)
-
-### Content Script Injection
-Content scripts are explicitly injected via `chrome.scripting.executeScript` when starting an issue, since the manifest's `content_scripts` only runs on page load.
-
-### CDP Error Capture
-The extension uses Chrome DevTools Protocol to capture:
-- Console errors (level: 'error')
-- Runtime exceptions with stack traces
-- Failed network requests (status < 200 or >= 300)
-
-### Storage
-
-IndexedDB database: `ClankerContextDB`
-
-Stores:
-- `sessions` - Monitoring session metadata
-- `issues` - Logged issues (enhancement/fix requests)
-- `consoleErrors` - Captured console errors per session
-- `networkErrors` - Captured failed network requests per session
-
-## TypeScript Path Alias
-
-Use `@/` for imports from `src/`:
-```typescript
-import { storageManager } from '@/background/StorageManager';
-```
+- **Service worker (MV3)**: May be terminated when idle. Use IndexedDB (StorageManager) for persistence, `chrome.storage.session` for volatile state (session, pause flag). No `URL.createObjectURL` — use data URLs for downloads.
+- **Content script injection**: Injected on-demand via `chrome.scripting.executeScript`, not declaratively in manifest.
+- **Path alias**: `@/` maps to `src/` (configured in tsconfig, vite, and jest).
+- **Tests**: Located in `src/__tests__/`. Coverage configured for `src/exporter/` and `src/prompts/` only. Tests use snapshot versioning (e.g., `v1.1.6/`, `v1.1.8/`).
+- **Custom attributes**: User-configured HTML attributes captured during element selection. Search directions: parent, descendant, or both. Stored in IndexedDB, available as template tokens.
+- **Custom prompt templates**: Stored in IndexedDB. Use Handlebars-like syntax. Editable in Settings. Reset-to-default restores templates from `src/prompts/templates.ts`.
